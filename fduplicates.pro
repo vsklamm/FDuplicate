@@ -27,11 +27,15 @@ CONFIG += c++11
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
-    duplicate_finder.cpp
+    duplicate_finder.cpp \
+    modeldir.cpp \
+    foundfile.cpp
 
 HEADERS += \
     mainwindow.h \
-    duplicate_finder.h
+    duplicate_finder.h \
+    modeldir.h \
+    foundfile.h
 
 FORMS += \
         mainwindow.ui

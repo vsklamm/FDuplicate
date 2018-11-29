@@ -1,6 +1,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "duplicate_finder.h"
+#include "foundfile.h"
+#include "modeldir.h"
 
 #include <QCommonStyle>
 #include <QDesktopWidget>
@@ -44,6 +46,24 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::show_about_dialog);
 
     // ui->listStart_Directories->setEditTriggers(QAbstractItemView::AnyKeyPressed | QAbstractItemView::DoubleClicked);
+
+    QVector<FoundFile> files = {
+        { 1  , "Group1    " , 0 },
+        { 2  , "Group1.1  " , 1 },
+        { 3  , "Group1.2  " , 1 },
+        { 4  , "Group2    " , 0 },
+        { 5  , "Group2.1  " , 4 },
+        { 6  , "Group1.3  " , 1 },
+        { 7  , "Group3    " , 0 },
+        { 8  , "Group3.1  " , 7 },
+        { 9  , "Group3.1.1" , 8 },
+        { 10 , "Group3.1.2" , 8 },
+    };
+    model = new ModelDir(this);
+    model->found_files = files;
+
+    ui->treeView->setModel(model);
+    ui->treeView->repaint();
 }
 
 MainWindow::~MainWindow()
@@ -67,10 +87,9 @@ void MainWindow::on_deleteDirectoryButton_clicked()
     {
         for (auto i=0; i < selected.count(); ++i)
         {
-            start_directories.erase(ui->listStart_Directories->model()->);
+            // start_directories.erase(ui->listStart_Directories->model()->);
             ui->listStart_Directories->model()->removeRow(i);
         }
-        // ui->listStart_Directories->repaint();
     }
 }
 
@@ -181,7 +200,7 @@ void MainWindow::show_directory(QString const& dir)
 
 void MainWindow::show_about_dialog()
 {
-    QMessageBox::aboutQt(this);
+    QMessageBox::about(this, "FDuplicate", "");
 }
 
 QString MainWindow::get_selected_directory()

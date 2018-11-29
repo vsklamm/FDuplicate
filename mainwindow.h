@@ -1,6 +1,8 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "modeldir.h"
+
 #include <QMainWindow>
 #include <QStringListModel>
 #include <QTreeWidget>
@@ -48,6 +50,7 @@ public:
     QString current_directory;
     bool recursively;
     std::set<QString> start_directories;
+    ModelDir * model;
 
 private:
     std::unique_ptr<Ui::MainWindow> ui;
