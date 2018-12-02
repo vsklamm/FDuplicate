@@ -1,48 +1,58 @@
 #ifndef DUBLICATE_FINDER_H
 #define DUBLICATE_FINDER_H
 
+#include <QObject>
+#include <QSet>
 #include <QString>
+#include <QVector>
+
 #include <map>
 #include <set>
 #include <vector>
 #include <array>
-#include <QObject>
-#include <QSet>
+#include <queue>
+#include <unordered_map>
 
-struct dublicate_finder : QObject
+#include "crypto++/sha.h"
+#include "crypto++/filters.h"
+#include "crypto++/hex.h"
+
+#include "extended_file_info.h"
+
+struct duplicate_finder : QObject
 {
     Q_OBJECT
 
-public:
-    using fsize_t = int64_t;
+  public:
+    using same_size_map = std::unordered_multimap<digest, extended_file_info>;
 
-    const fsize_t minsize = 1; // ignore files smaller than x bytes
+    const fsize_t minsize = 1;
+    const int max_dup_buffer = 5;
 
-private:
-    // std::vector<char *> start_directories; // vector ?
-
-    std::multimap<fsize_t, QString> duplicate_by_size;
+  private:
+    std::multimap<fsize_t, extended_file_info> duplicate_by_size;
     QSet<QString> visited_directories;
-    const QString start_directory;
+    QVector<extended_file_info> dup_buffer;
     bool recursively;
-    bool wasCanceled;
+    bool was_canceled;
 
-public:
-    dublicate_finder();
-    dublicate_finder(bool recursively);
-    ~dublicate_finder();
+  public:
+    duplicate_finder();
+    duplicate_finder(bool recursively);
+    ~duplicate_finder();
 
-public slots:
-    bool process_drive(const QString &drive); // wchar_t *
+  public slots:
+    bool process_drive(const QString &drive);
     bool process_drive(const std::set<QString> &sDir);
-    void cancelScanning();
+    void cancel_scanning();
 
-signals:
-    // void setProgress(int progress);
-    void scanningCompleted();
-    void scanningCanceled();
+  signals:
+    void tree_changed(int dupes, QVector<extended_file_info> &new_duplicates);
+    void scanning_completed();
+    void scanning_canceled();
 
-private:
+  private:
+    void add_to_tree(int dupes, same_size_map &same_size, bool is_end); // parameter n ???
     void compare_files(QString &first, QString &second);
     fsize_t get_file_size(const QString &file);
     void find_next_file();

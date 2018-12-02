@@ -1,7 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "duplicate_finder.h"
-#include "foundfile.h"
 #include "modeldir.h"
 
 #include <QCommonStyle>
@@ -18,23 +17,16 @@
 
 #include <algorithm>
 
-MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent),
-    current_directory(""), // TODO: is it right ?
-    ui(new Ui::MainWindow)
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
+                                          ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
 
-    // columns width
-    //ui->treeWidget->header()->setSectionResizeMode(0, QHeaderView::Stretch);
-    //ui->treeWidget->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    //ui->treeWidget->header()->setSectionResizeMode(2, QHeaderView::Interactive);
-
     QCommonStyle style;
     ui->actionOpen_Directory->setIcon(style.standardIcon(QCommonStyle::SP_DialogOpenButton));
-    ui->actionStart_Scanning ->setIcon(style.standardIcon(QCommonStyle::SP_MediaPlay));
+    ui->actionStart_Scanning->setIcon(style.standardIcon(QCommonStyle::SP_MediaPlay));
     ui->actionStop_Scanning->setIcon(style.standardIcon(QCommonStyle::SP_MediaStop));
-    ui->actionRemove_Files ->setIcon(style.standardIcon(QCommonStyle::SP_TrashIcon));
+    ui->actionRemove_Files->setIcon(style.standardIcon(QCommonStyle::SP_TrashIcon));
     ui->actionExit->setIcon(style.standardIcon(QCommonStyle::SP_DialogCloseButton));
     ui->actionAbout->setIcon(style.standardIcon(QCommonStyle::SP_DialogHelpButton));
 
@@ -45,79 +37,70 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionExit, &QAction::triggered, this, &QWidget::close);
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::show_about_dialog);
 
-    // ui->listStart_Directories->setEditTriggers(QAbstractItemView::AnyKeyPressed | QAbstractItemView::DoubleClicked);
+    progressBar = new QProgressBar(ui->statusBar);
+    progressBar->setAlignment(Qt::AlignRight);
+    progressBar->setMaximumSize(180, 19);
+    progressBar->setVisible(false);
 
-    QVector<FoundFile> files = {
-        { 1  , "Group1    " , 0 },
-        { 2  , "Group1.1  " , 1 },
-        { 3  , "Group1.2  " , 1 },
-        { 4  , "Group2    " , 0 },
-        { 5  , "Group2.1  " , 4 },
-        { 6  , "Group1.3  " , 1 },
-        { 7  , "Group3    " , 0 },
-        { 8  , "Group3.1  " , 7 },
-        { 9  , "Group3.1.1" , 8 },
-        { 10 , "Group3.1.2" , 8 },
-    };
+    labelDupes = new QLabel(ui->statusBar);
+    labelDupes->setAlignment(Qt::AlignRight);
+    labelDupes->setMinimumSize(labelDupes->sizeHint());
+
+    ui->statusBar->addPermanentWidget(labelDupes);
+    ui->statusBar->addPermanentWidget(progressBar);
+
     model = new ModelDir(this);
-    model->found_files = files;
-
-    ui->treeView->setModel(model);
-    ui->treeView->repaint();
+    model->setHeaderData(1, Qt::Vertical, "Folders");
 }
 
 MainWindow::~MainWindow()
-{}
+{
+}
 
 void MainWindow::on_addDirectoryButton_clicked()
 {
-    QString adding_path = get_selected_directory();
-
-    if (adding_path.size() != 0 && start_directories.find(adding_path) == start_directories.end()) {
-        start_directories.insert(adding_path);
-        QListWidgetItem *item = new QListWidgetItem(adding_path);
-        ui->listStart_Directories->addItem(item);
-    }
+    select_directory();
 }
 
 void MainWindow::on_deleteDirectoryButton_clicked()
 {
     QModelIndexList selected = ui->listStart_Directories->selectionModel()->selectedIndexes();
-    if (!selected.isEmpty())
+    if (!selected.isEmpty()) // TODO: if only one item too
     {
-        for (auto i=0; i < selected.count(); ++i)
+        for (auto i = 0; i < selected.count(); ++i)
         {
-            // start_directories.erase(ui->listStart_Directories->model()->);
-            ui->listStart_Directories->model()->removeRow(i);
+            int row = selected[i].row();
+            start_directories.erase(ui->listStart_Directories->item(row)->text());
+            ui->listStart_Directories->model()->removeRow(row);
         }
     }
 }
 
-void MainWindow::on_checkRecursively_stateChanged(int state)
+void MainWindow::on_checkRecursively_stateChanged([[maybe_unused]] int state)
 {
     show_message_box("state changed");
 }
 
-void MainWindow::add_root(QByteArray &name, QVector<QString> &vec)
+void MainWindow::update_tree(int dupes, QVector<extended_file_info> &new_duplicates)
 {
-    //    QTreeWidgetItem *itm = new QTree(ui->treeView);
-    //    itm->setText(0,name);
-    //    ui->treeView->addTopLevelItem(itm);
-    //    for(int i = 0; i < vec.size(); ++i)
-    //    {
-    //        add_child(itm,vec[i]);
-    //    }
-}
-void MainWindow::add_child(QTreeWidgetItem * parent, QString &name)
-{
-    //    QTreeWidgetItem *itm = new QTreeWidgetItem();
-    //    itm->setText(0, name);
-    //    parent->addChild(itm);
+    model->found_files = new_duplicates;
+
+    labelDupes->setText(QString("Duplicates found: %1").arg(dupes));
+    progressBar->setValue(50); // TODO: update
+
+    ui->treeView->setModel(model);
 }
 
 void MainWindow::select_directory()
 {
-    get_selected_directory();
+    QString adding_path = get_selected_directory();
+
+    if (adding_path.size() != 0 && start_directories.find(adding_path) == start_directories.end())
+    {
+        start_directories.insert(adding_path);
+        QListWidgetItem *item = new QListWidgetItem(adding_path);
+        ui->listStart_Directories->addItem(item);
+    }
 }
 
 void MainWindow::start_scanning()
@@ -125,42 +108,30 @@ void MainWindow::start_scanning()
     QTime t;
     t.start();
 
-    if (current_directory.size() != 0) {
-        dublicate_finder finder;
-        bool complete = finder.process_drive(current_directory);
+    if (!start_directories.empty())
+    {
+        // ui in another function
+        progressBar->setVisible(true);
+        ui->statusBar->showMessage("Scanning...");
 
-        // ====================================
-        QProgressDialog progress(this);
-        progress.setLabelText("Scanning");
-        progress.setRange(0, 100);
-        progress.setModal(true);
+        duplicate_finder finder;
+        connect(&finder, &duplicate_finder::tree_changed, this, &MainWindow::update_tree);
 
-        for (int row = 0; row < 100; ++row) {
-            progress.setValue(row);
-            qApp->processEvents();
-            if (progress.wasCanceled()) {
-                ui->statusBar->clearMessage();
-                ui->statusBar->showMessage("Сорян");
-                break;
-            }
-            sleep(100);
-        }
-        // ====================================
-
-        if (complete) {
+        bool complete = finder.process_drive(start_directories);
+        if (complete)
+        {
             ui->statusBar->clearMessage();
             ui->statusBar->showMessage(QString("Scan complete. Elapsed time: %1 ms").arg(t.elapsed()));
-        } else {
-
         }
-    } else {
+    }
+    else
+    {
         no_directory_selected();
     }
 }
 
 void MainWindow::stop_scanning()
 {
-
 }
 
 void MainWindow::remove_files()
@@ -183,21 +154,6 @@ void MainWindow::remove_files()
     //    }
 }
 
-void MainWindow::show_directory(QString const& dir)
-{
-    //    ui->treeView->reset(); // ???
-    //    QDir d(dir);
-    //    QFileInfoList list = d.entryInfoList();
-    //    for (QFileInfo& file_info : list)
-    //    {
-    //        QTreeWidgetItem* item = new QTreeWidgetItem(ui->treeWidget);
-    //        item->setText(0, file_info.fileName());
-    //        item->setText(1, QString::number(file_info.size()));
-    //        item->setText(2, file_info.absolutePath());
-    //        ui->treeWidget->addTopLevelItem(item);
-    //    }
-}
-
 void MainWindow::show_about_dialog()
 {
     QMessageBox::about(this, "FDuplicate", "");
@@ -207,11 +163,10 @@ QString MainWindow::get_selected_directory()
 {
     QString dir = QFileDialog::getExistingDirectory(this, "Select Directory for Scanning",
                                                     QString(), QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
-    current_directory = dir;
     return dir;
 }
 
-void MainWindow::show_message_box(QString const& message)
+void MainWindow::show_message_box(QString const &message)
 {
     QMessageBox msgBox;
     msgBox.setText(message);
@@ -221,17 +176,10 @@ void MainWindow::show_message_box(QString const& message)
 void MainWindow::no_directory_selected()
 {
     QMessageBox::StandardButton reply;
-    reply = QMessageBox::question(this, "No directory selected", "Select first directory?",
-                                  QMessageBox::Yes|QMessageBox::Cancel);
-    if (reply == QMessageBox::Yes) {
+    reply = QMessageBox::question(this, "No directory selected", "Select first directory to scan?",
+                                  QMessageBox::Yes | QMessageBox::Cancel);
+    if (reply == QMessageBox::Yes)
+    {
         select_directory();
-    }
-}
-
-void MainWindow::sleep(const int msecs)
-{
-    QTime dieTime= QTime::currentTime().addMSecs(msecs);
-    while (QTime::currentTime() < dieTime) {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
     }
 }

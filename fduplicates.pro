@@ -24,21 +24,26 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 CONFIG += c++11
 
+PKGCONFIG += openssl
+
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
     duplicate_finder.cpp \
     modeldir.cpp \
-    foundfile.cpp
+    extended_file_info.cpp
 
 HEADERS += \
     mainwindow.h \
     duplicate_finder.h \
     modeldir.h \
-    foundfile.h
+    extended_file_info.h
 
 FORMS += \
         mainwindow.ui
+
+LIBS += -L/usr/lib/crypto++ -lcrypto++
+INCS += -I/usr/include/crypto++
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
