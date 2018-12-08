@@ -4,6 +4,8 @@
 #include <QDir>
 #include <QDirIterator>
 #include <QFileInfo>
+#include <QDebug>
+#include <QThread>
 
 #include <fstream>
 #include <queue>
@@ -23,8 +25,8 @@ struct hash<digest>
 };
 } // namespace std
 
-duplicate_finder::duplicate_finder(QObject * parent)
-    : QObject(parent), was_canceled(false) {};
+duplicate_finder::duplicate_finder()
+    : was_canceled(false) {};
 
 duplicate_finder::~duplicate_finder(){};
 
@@ -35,34 +37,32 @@ void duplicate_finder::clearData()
     was_canceled = false;
 }
 
-bool duplicate_finder::process_drive(const QString &sDir, bool recursively)
-{
-    std::set<QString> tmp;
-    tmp.insert(sDir);
-    return process_drive(tmp, recursively);
-}
-
-bool duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool recursively)
+void duplicate_finder::process_drive(std::set<QString> start_dirs, bool recursively)
 {
     clearData();
+
+    qDebug() << "From work thread: " << QThread::currentThreadId();
 
     try {
         for (auto& current_path : start_dirs) // TODO: changed order :(
         {
             if (was_canceled) {
-                return false; // TODO: or not?
+                emit scanning_canceled();
+                return;
             }
 
             QDir current_dir(current_path);
-            visited_directories.insert(current_dir.path()); // TODO: hmmmm
+            visited_directories.insert(current_dir.path()); // TODO: what in nested
 
             QDirIterator it(current_dir.path(), QDir::Hidden | QDir::Files | QDir::NoDotAndDotDot,
                             recursively ? QDirIterator::Subdirectories : QDirIterator::NoIteratorFlags);
 
             while (it.hasNext())
             {
-                if (was_canceled)
-                    break;
+                if (was_canceled){
+                    emit scanning_canceled();
+                    return;
+                }
 
                 auto file = it.next();
                 if(!it.fileInfo().isSymLink()) { // TODO: what about them?
@@ -112,10 +112,13 @@ bool duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
             same_size.emplace(entry.second.initial_hash(), entry.second);
         }
         add_to_tree(dupes, same_size, true);
-        return true;
     } catch (...) {
-        return false;
+        // ignore ?
     }
+
+    qDebug() << "From work thread: " << QThread::currentThreadId();
+
+    emit scanning_finished();
 }
 
 void duplicate_finder::cancel_scanning()

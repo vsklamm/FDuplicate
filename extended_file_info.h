@@ -16,29 +16,29 @@ using fsize_t = int64_t;
 
 struct extended_file_info
 {
-  extended_file_info();
-  extended_file_info(QString name, QString path, fsize_t size);
-  extended_file_info(QString name, QString path, fsize_t size, int id, int parent_id);
+    extended_file_info();
+    extended_file_info(QString name, QString path, fsize_t size);
+    extended_file_info(QString name, QString path, fsize_t size, int id, int parent_id);
 
-  digest initial_hash();
-  digest full_hash();
+    digest initial_hash();
+    digest full_hash();
 
 private:
-  digest sha1(const QString &path, fsize_t max_len);
-  QString append_path(const QString &path1, const QString &path2);
+    digest sha1(const QString &path, fsize_t max_len);
+    QString append_path(const QString &path1, const QString &path2);
 
 public:
-  QString file_name;
-  QString path;
-  fsize_t size;
-  int id;
-  int parent_id;
+    QString file_name;
+    QString path;
+    fsize_t size;
+    int id;
+    int parent_id;
 
 private:
-  digest initial_hash_;
-  digest full_hash_;
-  bool has_initial_hash = false;
-  bool has_full_hash = false;
+    digest initial_hash_;
+    digest full_hash_;
+    bool has_initial_hash = false;
+    bool has_full_hash = false;
 };
 
 #endif // EXTENDED_FILE_INFO_H

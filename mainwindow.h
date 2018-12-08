@@ -8,6 +8,7 @@
 #include <QMainWindow>
 #include <QProgressBar>
 #include <QStringListModel>
+#include <QTime>
 #include <QTreeWidget>
 #include <memory>
 #include <set>
@@ -19,43 +20,51 @@ class MainWindow;
 
 class MainWindow : public QMainWindow
 {
-  Q_OBJECT
+    Q_OBJECT
 
 public:
-  explicit MainWindow(QWidget *parent = nullptr);
-  ~MainWindow();
+    explicit MainWindow(QWidget *parent = nullptr);
+    ~MainWindow();
 
 private:
-  QString get_selected_directory();
+    QString get_selected_directory();
 
-  void show_message_box(QString const &message);
+    void show_message_box(QString const &message);
 
 private slots:
-  void on_addDirectoryButton_clicked();
-  void on_deleteDirectoryButton_clicked();
-  void on_checkRecursively_stateChanged(int state);
+    void on_addDirectoryButton_clicked();
+    void on_deleteDirectoryButton_clicked();
+    void on_checkRecursively_stateChanged(int state);
 
-  void select_directory();
-  void start_scanning();
-  void stop_scanning();
-  void remove_files();
+    void add_root(QByteArray &name, QVector<extended_file_info> &vec);
+    void add_child(QTreeWidgetItem * parent, extended_file_info &file_info);
 
-  void update_tree(int dupes, QVector<extended_file_info> &new_duplicates);
+    void select_directory();
+    void start_scanning();
+    void stop_scanning();
+    void remove_files();
 
-  // messages
-  void no_directory_selected();
+    void update_tree(int dupes, QVector<extended_file_info> &new_duplicates);
+    void on_scanningFinished();
 
-  // menu bar
-  void show_about_dialog();
+    // messages
+    void no_directory_selected();
+
+    // menu bar
+    void show_about_dialog();
+
+signals:
+    void transmit_data(std::set<QString> sDir, bool recursively = true);
 
 public:
-  std::set<QString> start_directories;
-  ModelDir *model;
-  QProgressBar *progressBar;
-  QLabel *labelDupes;
+    std::set<QString> start_directories;
+    ModelDir *model;
+    QProgressBar *progressBar;
+    QLabel *labelDupes;
 
 private:
-  std::unique_ptr<Ui::MainWindow> ui;
+    QTime *t;
+    std::unique_ptr<Ui::MainWindow> ui;
 };
 
 #endif // MAINWINDOW_H
