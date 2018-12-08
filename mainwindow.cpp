@@ -49,8 +49,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     ui->statusBar->addPermanentWidget(labelDupes);
     ui->statusBar->addPermanentWidget(progressBar);
 
+    ui->treeView->header()->setMinimumSectionSize(50);
+
     model = new ModelDir(this);
-    model->setHeaderData(1, Qt::Vertical, "Folders");
 }
 
 MainWindow::~MainWindow()
@@ -78,7 +79,7 @@ void MainWindow::on_deleteDirectoryButton_clicked()
 
 void MainWindow::on_checkRecursively_stateChanged([[maybe_unused]] int state)
 {
-    show_message_box("state changed");
+    // TODO: message ?
 }
 
 void MainWindow::update_tree(int dupes, QVector<extended_file_info> &new_duplicates)
@@ -89,6 +90,9 @@ void MainWindow::update_tree(int dupes, QVector<extended_file_info> &new_duplica
     progressBar->setValue(50); // TODO: update
 
     ui->treeView->setModel(model);
+
+    for (int column = 0; column < model->columnCount(); ++column)
+            ui->treeView->resizeColumnToContents(column);
 }
 
 void MainWindow::select_directory()
@@ -114,10 +118,10 @@ void MainWindow::start_scanning()
         progressBar->setVisible(true);
         ui->statusBar->showMessage("Scanning...");
 
-        duplicate_finder finder;
+        duplicate_finder finder(this);
         connect(&finder, &duplicate_finder::tree_changed, this, &MainWindow::update_tree);
 
-        bool complete = finder.process_drive(start_directories);
+        bool complete = finder.process_drive(start_directories, ui->checkRecursively->isChecked());
         if (complete)
         {
             ui->statusBar->clearMessage();
@@ -177,7 +181,7 @@ void MainWindow::no_directory_selected()
 {
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, "No directory selected", "Select first directory to scan?",
-                                  QMessageBox::Yes | QMessageBox::Cancel);
+                                  QMessageBox::Cancel | QMessageBox::Yes);
     if (reply == QMessageBox::Yes)
     {
         select_directory();

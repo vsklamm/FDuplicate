@@ -49,7 +49,6 @@ private slots:
   void show_about_dialog();
 
 public:
-  bool recursively;
   std::set<QString> start_directories;
   ModelDir *model;
   QProgressBar *progressBar;

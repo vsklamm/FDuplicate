@@ -4,12 +4,12 @@
 #include <QFile>
 
 extended_file_info::extended_file_info()
-    : extended_file_info("", "", 0)
+    : file_name(""), path(""), size(0), id(0), parent_id(0)
 {
 }
 
 extended_file_info::extended_file_info(QString name, QString path, fsize_t size)
-    : extended_file_info(name, path, size, 0, 0)
+    : file_name(name), path(path), size(size), id(0), parent_id(0)
 {
 }
 
@@ -18,20 +18,20 @@ extended_file_info::extended_file_info(QString name, QString path, fsize_t size,
 {
 }
 
-digest extended_file_info::first_hash()
+digest extended_file_info::initial_hash()
 {
-    if (!has_first_hash)
+    if (!has_initial_hash)
     {
-        first_hash_ = sha1(append_path(path, file_name), std::min(first_hash_size, size));
-        has_first_hash = true;
+        initial_hash_ = sha1(append_path(path, file_name), std::min(first_hash_size, size));
+        has_initial_hash = true;
     }
-    return first_hash_;
+    return initial_hash_;
 }
 
 digest extended_file_info::full_hash()
 {
     if (first_hash_size >= size)
-        return first_hash();
+        return initial_hash();
     if (!has_full_hash)
     {
         full_hash_ = sha1(append_path(path, file_name), size);

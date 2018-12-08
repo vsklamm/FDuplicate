@@ -20,7 +20,7 @@ struct extended_file_info
   extended_file_info(QString name, QString path, fsize_t size);
   extended_file_info(QString name, QString path, fsize_t size, int id, int parent_id);
 
-  digest first_hash();
+  digest initial_hash();
   digest full_hash();
 
 private:
@@ -35,8 +35,10 @@ public:
   int parent_id;
 
 private:
-  digest first_hash_, full_hash_;
-  bool has_first_hash = false, has_full_hash = false;
+  digest initial_hash_;
+  digest full_hash_;
+  bool has_initial_hash = false;
+  bool has_full_hash = false;
 };
 
 #endif // EXTENDED_FILE_INFO_H

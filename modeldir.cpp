@@ -14,7 +14,6 @@ const extended_file_info &recordById(int id, const ModelDir &model_dir)
     for (auto &r : model_dir.found_files)
         if (r.id == id)
             return r;
-    assert(false); // TODO: crashes or not?
 }
 
 ModelDir::ModelDir(QObject *parent)
@@ -47,7 +46,7 @@ int ModelDir::rowCount(const QModelIndex &parent) const
 
 int ModelDir::columnCount([[maybe_unused]] const QModelIndex &parent) const
 {
-    return 4;
+    return 3;
 }
 
 QVariant ModelDir::data(const QModelIndex &index, int role) const
@@ -62,8 +61,6 @@ QVariant ModelDir::data(const QModelIndex &index, int role) const
         case 1:
             return r.path;
         case 2:
-            return r.parent_id;
-        case 3:
             return static_cast<long long>(r.size);
         }
     }

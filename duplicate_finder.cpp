@@ -2,6 +2,7 @@
 #include "extended_file_info.h"
 
 #include <QDir>
+#include <QDirIterator>
 #include <QFileInfo>
 
 #include <fstream>
@@ -22,18 +23,10 @@ struct hash<digest>
 };
 } // namespace std
 
-duplicate_finder::duplicate_finder()
-    : recursively(true), was_canceled(false){};
-
-duplicate_finder::duplicate_finder(bool recursively)
-    : recursively(recursively), was_canceled(false){};
+duplicate_finder::duplicate_finder(QObject * parent)
+    : QObject(parent), was_canceled(false) {};
 
 duplicate_finder::~duplicate_finder(){};
-
-fsize_t duplicate_finder::get_file_size(const QString &file)
-{
-    return QFileInfo(file).size();
-}
 
 void duplicate_finder::clearData()
 {
@@ -42,102 +35,92 @@ void duplicate_finder::clearData()
     was_canceled = false;
 }
 
-bool duplicate_finder::process_drive(const QString &sDir)
+bool duplicate_finder::process_drive(const QString &sDir, bool recursively)
 {
     std::set<QString> tmp;
     tmp.insert(sDir);
-    return process_drive(tmp);
+    return process_drive(tmp, recursively);
 }
 
-bool duplicate_finder::process_drive(const std::set<QString> &start_dirs)
+bool duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool recursively)
 {
     clearData();
 
-    std::queue<QDir> order;
-    for (auto &s : start_dirs)
-    {
-        order.emplace(s);
-    }
-
-    while (!was_canceled && !order.empty())
-    {
-        QDir current_path = order.front();
-        order.pop();
-        visited_directories.insert(current_path.path());
-
-        if (!current_path.exists())
+    try {
+        for (auto& current_path : start_dirs) // TODO: changed order :(
         {
-            // out << DIRECTORY DOESN'T EXIST
-        }
+            if (was_canceled) {
+                return false; // TODO: or not?
+            }
 
-        QFileInfoList list = current_path.entryInfoList();
-        for (QFileInfo &file_inf : list) // TODO: what about rules?
-        {
-            if (was_canceled)
-                break;
-            if (file_inf.isSymLink())
-                continue;
-            //    file_info = QFileInfo(file_info.symLinkTarget()); // TODO: is it legal?
-            if (file_inf.fileName().compare(".") != 0 && file_inf.fileName().compare("..") != 0)
+            QDir current_dir(current_path);
+            visited_directories.insert(current_dir.path()); // TODO: hmmmm
+
+            QDirIterator it(current_dir.path(), QDir::Hidden | QDir::Files | QDir::NoDotAndDotDot,
+                            recursively ? QDirIterator::Subdirectories : QDirIterator::NoIteratorFlags);
+
+            while (it.hasNext())
             {
-                if (recursively && !file_inf.isFile() && file_inf.isDir())
-                {
-                    order.emplace(file_inf.absoluteFilePath()); // TODO: path or absolute path ?
-                }
-                else
-                {
-                    auto size = file_inf.size();
+                if (was_canceled)
+                    break;
+
+                auto file = it.next();
+                if(!it.fileInfo().isSymLink()) { // TODO: what about them?
+                    auto size = it.fileInfo().size();
                     if (size < minsize)
                         continue;
-                    duplicate_by_size.emplace(size, extended_file_info(file_inf.fileName(), file_inf.absolutePath(), size));
+                    duplicate_by_size.emplace(size, extended_file_info(it.fileInfo().fileName(), it.fileInfo().absolutePath(), size));
                 }
             }
         }
-    }
 
-    for (auto it = duplicate_by_size.begin(); it != duplicate_by_size.end();)
-    {
-        if (duplicate_by_size.count(it->first) < 2)
-            duplicate_by_size.erase(it);
-        ++it;
-    }
-
-    fsize_t lastsize = 0;
-    int dupes = 0, total_id = 1, parent_id = 0;
-    same_size_map same_size;
-    for (auto &entry : duplicate_by_size)
-    {
-        if (entry.second.size == lastsize)
+        for (auto it = duplicate_by_size.begin(); it != duplicate_by_size.end();)
         {
-            auto equals = same_size.equal_range(entry.second.first_hash());
-            for (auto it = equals.first; it != equals.second; ++it)
+            if(duplicate_by_size.count(it->first) < 2)
+                duplicate_by_size.erase(it++);
+            else ++it;
+        }
+
+        fsize_t lastsize = 0;
+        int dupes = 0, total_id = 1;
+        int group = 0;
+        same_size_map same_size;
+        for (auto &entry : duplicate_by_size)
+        {
+            if (entry.second.size == lastsize)
             {
-                auto other = it->second;
-                if (other.full_hash() == entry.second.full_hash())
+                auto equals = same_size.equal_range(entry.second.initial_hash());
+                for (auto it_equals = equals.first; it_equals != equals.second; ++it_equals)
                 {
-                    parent_id = other.id;
-                    ++dupes;
+                    extended_file_info& other = it_equals->second;
+                    if (other.full_hash() == entry.second.full_hash())
+                    {
+                        if (other.parent_id == 0) // initial value
+                            other.parent_id = ++group;
+                        entry.second.parent_id = other.parent_id;
+                        ++dupes;
+                    }
                 }
             }
+            else
+            {
+                add_to_tree(dupes, same_size, false);
+                same_size.clear();
+                lastsize = entry.second.size;
+            }
+            entry.second.id = total_id++;
+            same_size.emplace(entry.second.initial_hash(), entry.second);
         }
-        else
-        {
-            add_to_tree(dupes, same_size, false);
-            same_size.clear();
-            parent_id = 0;
-            lastsize = entry.second.size;
-        }
-        entry.second.id = total_id++;
-        entry.second.parent_id = parent_id;
-        same_size.emplace(entry.second.first_hash(), entry.second);
+        add_to_tree(dupes, same_size, true);
+        return true;
+    } catch (...) {
+        return false;
     }
-    add_to_tree(dupes, same_size, true);
-    return true;
 }
 
 void duplicate_finder::cancel_scanning()
 {
-    if (!was_canceled)
+    if (!was_canceled) // TODO: rewrite cancelling
     {
         was_canceled = true;
         emit scanning_canceled();
@@ -148,7 +131,8 @@ void duplicate_finder::add_to_tree(int dupes, same_size_map &same_size, bool is_
 {
     for (auto &e : same_size)
     {
-        dup_buffer.push_back(e.second);
+        if (e.second.parent_id != 0) // files without diplicate
+            dup_buffer.push_back(e.second);
     }
     if (is_end || dup_buffer.size() > max_dup_buffer)
     {
