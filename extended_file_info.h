@@ -32,7 +32,8 @@ public:
     QString path;
     fsize_t size;
     int id;
-    int parent_id;
+    int parent_id; // for QTreeView
+    int vector_row;
 
 private:
     digest initial_hash_;

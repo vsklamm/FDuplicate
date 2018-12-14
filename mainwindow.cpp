@@ -57,7 +57,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     ui->statusBar->addPermanentWidget(labelDupes);
     ui->statusBar->addPermanentWidget(progressBar);
 
-    model = new ModelDir(this);
+    // model = new ModelDir(this);
 }
 
 MainWindow::~MainWindow()
@@ -109,31 +109,6 @@ void MainWindow::add_child(QTreeWidgetItem * parent, extended_file_info &file_in
     parent->addChild(treeItem);
 }
 
-void MainWindow::update_tree(int dupes, QVector<extended_file_info> &new_duplicates)
-{
-    model->found_files = new_duplicates;
-
-    labelDupes->setText(QString("Duplicates found: %1").arg(dupes));
-    progressBar->setValue(50); // TODO: update
-
-    // ui->treeView->setModel(model);
-
-    // for (int column = 0; column < model->columnCount(); ++column)
-    //        ui->treeView->resizeColumnToContents(column);
-}
-
-void MainWindow::select_directory()
-{
-    QString adding_path = get_selected_directory();
-
-    if (adding_path.size() != 0 && start_directories.find(adding_path) == start_directories.end())
-    {
-        start_directories.insert(adding_path);
-        QListWidgetItem *item = new QListWidgetItem(adding_path);
-        ui->listStart_Directories->addItem(item);
-    }
-}
-
 void MainWindow::start_scanning()
 {
     t = new QTime();
@@ -150,12 +125,12 @@ void MainWindow::start_scanning()
         QThread * thread= new QThread;
         duplicate_finder * finder = new duplicate_finder();
 
-        // connect(thread, &QThread::started, finder, &duplicate_finder::cancel_scanning);
-        connect(finder, &duplicate_finder::tree_changed, this, &MainWindow::update_tree);
-        connect(finder, &duplicate_finder::scanning_finished, this, &MainWindow::on_scanningFinished);
-        connect(this, &MainWindow::transmit_data, finder, &duplicate_finder::process_drive, Qt::DirectConnection);
-
         finder->moveToThread(thread);
+
+        connect(finder, &duplicate_finder::tree_changed, this, &MainWindow::on_updateTree);
+        connect(finder, &duplicate_finder::scanning_finished, this, &MainWindow::on_scanningFinished);
+        connect(this, &MainWindow::transmit_data, finder, &duplicate_finder::process_drive);
+        connect(this, &MainWindow::stop_scanning, finder, &duplicate_finder::cancel_scanning);
 
         thread->start();
 
@@ -168,14 +143,44 @@ void MainWindow::start_scanning()
     }
 }
 
-void MainWindow::on_scanningFinished()
+void MainWindow::on_preprocessingFinished(int files_count)
+{
+   progressBar->setMaximum(files_count);
+}
+
+void MainWindow::on_updateTree(int completed_files, QVector<QVector<extended_file_info>> new_duplicates)
+{
+    // model->found_files = new_duplicates;
+    // ui->treeView->setModel(model);
+
+    labelDupes->setText(QString("Duplicates found: %1").arg(new_duplicates.size()));
+    progressBar->setValue(completed_files * 100 / progressBar->maximum()); // TODO: update
+
+    // for (int column = 0; column < model->columnCount(); ++column)
+    //        ui->treeView->resizeColumnToContents(column);
+
+    ui->treeWidget->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+
+    for (auto i = 0; i < new_duplicates.size(); ++i)
+    {
+        QTreeWidgetItem * item = new QTreeWidgetItem(ui->treeWidget);
+        item->setText(0, new_duplicates[i][0].file_name);
+        item->setText(1, QString::number(new_duplicates[i].size()));
+
+        for (auto j = 0; j < new_duplicates[i].size(); ++j)
+        {
+            QTreeWidgetItem * child_item = new QTreeWidgetItem();
+            child_item->setText(0, new_duplicates[i][j].file_name);
+            item->addChild(child_item);
+        }
+    }
+}
+
+void MainWindow::on_scanningFinished(int dupes)
 {
     ui->statusBar->clearMessage();
     ui->statusBar->showMessage(QString("Scan complete. Elapsed time: %1 ms").arg(t->elapsed()));
-}
-
-void MainWindow::stop_scanning()
-{
+    labelDupes->setText(QString("Duplicates found: %1").arg(dupes));
 }
 
 void MainWindow::remove_files()
@@ -196,6 +201,23 @@ void MainWindow::remove_files()
     //    } else {
     //        s = "failed to remove: " + s;
     //    }
+}
+
+void MainWindow::select_directory()
+{
+    QString adding_path = get_selected_directory();
+
+    if (adding_path.size() != 0 && start_directories.find(adding_path) == start_directories.end())
+    {
+        start_directories.insert(adding_path);
+        QListWidgetItem *item = new QListWidgetItem(adding_path);
+        ui->listStart_Directories->addItem(item);
+    }
+}
+
+void MainWindow::stop_scanning()
+{
+    // TODO: write some code
 }
 
 void MainWindow::show_about_dialog()

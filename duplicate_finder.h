@@ -33,7 +33,6 @@ public:
 private:
   std::multimap<fsize_t, extended_file_info> duplicate_by_size;
   QSet<QString> visited_directories;
-  QVector<extended_file_info> dup_buffer;
   bool was_canceled;
 
 public:
@@ -45,12 +44,13 @@ public slots:
   void cancel_scanning();
 
 signals:
-  void tree_changed(int dupes, QVector<extended_file_info> &new_duplicates);
-  void scanning_finished();
+  void preprocess_finished(int files_count); // TODO: int or ulong
+  void tree_changed(int completed_files, QVector<QVector<extended_file_info>> new_duplicates);
   void scanning_canceled();
+  void scanning_finished(int dupes);
 
 private:
-  void add_to_tree(int dupes, same_size_map &same_size, bool is_end);
+  void add_to_tree(int completed_files, QVector<QVector<extended_file_info>> &table, bool is_end); // TODO: int or ulong
   void clearData();
 };
 

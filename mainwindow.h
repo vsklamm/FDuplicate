@@ -45,13 +45,12 @@ private slots:
 
     void remove_files();
 
-    void update_tree(int dupes, QVector<extended_file_info> &new_duplicates);
-    void on_scanningFinished();
+    void on_preprocessingFinished(int files_count);
+    void on_updateTree(int completed_files, QVector<QVector<extended_file_info>> new_duplicates);
+    void on_scanningFinished(int dupes);
 
-    // messages
     void no_directory_selected();
 
-    // menu bar
     void show_about_dialog();
 
 signals:
@@ -59,7 +58,7 @@ signals:
 
 public:
     std::set<QString> start_directories;
-    ModelDir *model;
+    // ModelDir *model;
     QProgressBar *progressBar;
     QLabel *labelDupes;
 

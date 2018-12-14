@@ -82,10 +82,13 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
                 ++it;
         }
 
+        emit preprocess_finished(int(duplicate_by_size.size())); // TODO: or not int
+
         fsize_t lastsize = 0;
         int dupes = 0, total_id = 1;
         int group = 0;
         same_size_map same_size;
+        QVector<QVector<extended_file_info>> table;
         for (auto &entry : duplicate_by_size)
         {
             if (entry.second.size == lastsize)
@@ -96,33 +99,42 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
                     extended_file_info &other = it_equals->second;
                     if (other.full_hash() == entry.second.full_hash())
                     {
-                        if (other.parent_id == 0) // initial value
+                        if (other.parent_id == 0) { // initial value
+                            ++dupes;
                             other.parent_id = ++group;
-                        entry.second.parent_id = other.parent_id;
+                            other.vector_row = entry.second.vector_row = table.size();
+                            table.push_back(QVector<extended_file_info>(1, other));
+                        }
                         ++dupes;
+                        entry.second.parent_id = other.parent_id;
+                        entry.second.vector_row = other.vector_row;
+                        table[entry.second.vector_row].push_back(entry.second);
                     }
                 }
             }
             else
             {
-                add_to_tree(dupes, same_size, false);
+                add_to_tree(total_id, table, false);
+                table.clear();
                 same_size.clear();
                 lastsize = entry.second.size;
             }
             entry.second.id = total_id++;
             same_size.emplace(entry.second.initial_hash(), entry.second);
         }
-        add_to_tree(dupes, same_size, true);
-        emit scanning_finished();
+        add_to_tree(total_id, table, true);
+        emit scanning_finished(dupes);
     }
     catch (...)
     {
-        return;
+        // ignore
+        // TODO: do not ignore
     }
 }
 
 void duplicate_finder::cancel_scanning()
 {
+    qDebug() << QString(__func__) << " from work thread: " << QThread::currentThreadId();
     if (!was_canceled) // TODO: rewrite cancelling
     {
         was_canceled = true;
@@ -130,16 +142,7 @@ void duplicate_finder::cancel_scanning()
     }
 }
 
-void duplicate_finder::add_to_tree(int dupes, same_size_map &same_size, bool is_end)
+void duplicate_finder::add_to_tree(int completed_files, QVector<QVector<extended_file_info>> &table, bool is_end)
 {
-    for (auto &e : same_size)
-    {
-        if (e.second.parent_id != 0) // files without diplicate
-            dup_buffer.push_back(e.second);
-    }
-    if (is_end || dup_buffer.size() > max_dup_buffer)
-    {
-        emit tree_changed(dupes, dup_buffer);
-        // dup_buffer.clear(); // TODO: need?
-    }
+    emit tree_changed(completed_files, table);
 }
