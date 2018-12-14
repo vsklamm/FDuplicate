@@ -40,7 +40,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
 
     connect(ui->actionOpen_Directory, &QAction::triggered, this, &MainWindow::select_directory);
     connect(ui->actionStart_Scanning, &QAction::triggered, this, &MainWindow::start_scanning);
-    connect(ui->actionStop_Scanning, &QAction::trigger, this, &MainWindow::stop_scanning);
+    connect(ui->actionStop_Scanning, &QAction::triggered, this, &MainWindow::stop_scanning);
     connect(ui->actionRemove_Files, &QAction::triggered, this, &MainWindow::remove_files);
     connect(ui->actionExit, &QAction::triggered, this, &QWidget::close);
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::show_about_dialog);
@@ -150,13 +150,14 @@ void MainWindow::start_scanning()
         QThread * thread= new QThread;
         duplicate_finder * finder = new duplicate_finder();
 
-        finder->moveToThread(thread);
-
-        thread->start();
-
+        // connect(thread, &QThread::started, finder, &duplicate_finder::cancel_scanning);
         connect(finder, &duplicate_finder::tree_changed, this, &MainWindow::update_tree);
         connect(finder, &duplicate_finder::scanning_finished, this, &MainWindow::on_scanningFinished);
         connect(this, &MainWindow::transmit_data, finder, &duplicate_finder::process_drive, Qt::DirectConnection);
+
+        finder->moveToThread(thread);
+
+        thread->start();
 
         bool checked = ui->checkRecursively->isChecked();
         emit transmit_data(start_directories, checked);

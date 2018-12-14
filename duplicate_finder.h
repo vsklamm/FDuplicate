@@ -41,7 +41,7 @@ public:
   ~duplicate_finder();
 
 public slots:
-  void process_drive(std::set<QString> sDir, bool recursively = true);
+  void process_drive(const std::set<QString> &start_dirs, bool recursively = true);
   void cancel_scanning();
 
 signals:

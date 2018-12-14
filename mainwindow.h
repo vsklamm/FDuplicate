@@ -42,6 +42,7 @@ private slots:
     void select_directory();
     void start_scanning();
     void stop_scanning();
+
     void remove_files();
 
     void update_tree(int dupes, QVector<extended_file_info> &new_duplicates);

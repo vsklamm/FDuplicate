@@ -26,7 +26,7 @@ struct hash<digest>
 } // namespace std
 
 duplicate_finder::duplicate_finder()
-    : was_canceled(false) {};
+    : was_canceled(false){};
 
 duplicate_finder::~duplicate_finder(){};
 
@@ -37,35 +37,35 @@ void duplicate_finder::clearData()
     was_canceled = false;
 }
 
-void duplicate_finder::process_drive(std::set<QString> start_dirs, bool recursively)
+void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool recursively)
 {
     clearData();
 
-    qDebug() << "From work thread: " << QThread::currentThreadId();
+    qDebug() << QString(__func__) << " from work thread: " << QThread::currentThreadId();
 
-    try {
+    try
+    {
         for (auto& current_path : start_dirs) // TODO: changed order :(
         {
-            if (was_canceled) {
-                emit scanning_canceled();
-                return;
+            if (was_canceled)
+            {
+                return; // TODO: or not?
             }
 
             QDir current_dir(current_path);
-            visited_directories.insert(current_dir.path()); // TODO: what in nested
+            visited_directories.insert(current_dir.path()); // TODO: hmmmm
 
             QDirIterator it(current_dir.path(), QDir::Hidden | QDir::Files | QDir::NoDotAndDotDot,
                             recursively ? QDirIterator::Subdirectories : QDirIterator::NoIteratorFlags);
 
             while (it.hasNext())
             {
-                if (was_canceled){
-                    emit scanning_canceled();
-                    return;
-                }
+                if (was_canceled)
+                    break;
 
                 auto file = it.next();
-                if(!it.fileInfo().isSymLink()) { // TODO: what about them?
+                if (!it.fileInfo().isSymLink())
+                { // TODO: what about them?
                     auto size = it.fileInfo().size();
                     if (size < minsize)
                         continue;
@@ -76,9 +76,10 @@ void duplicate_finder::process_drive(std::set<QString> start_dirs, bool recursiv
 
         for (auto it = duplicate_by_size.begin(); it != duplicate_by_size.end();)
         {
-            if(duplicate_by_size.count(it->first) < 2)
+            if (duplicate_by_size.count(it->first) < 2)
                 duplicate_by_size.erase(it++);
-            else ++it;
+            else
+                ++it;
         }
 
         fsize_t lastsize = 0;
@@ -92,7 +93,7 @@ void duplicate_finder::process_drive(std::set<QString> start_dirs, bool recursiv
                 auto equals = same_size.equal_range(entry.second.initial_hash());
                 for (auto it_equals = equals.first; it_equals != equals.second; ++it_equals)
                 {
-                    extended_file_info& other = it_equals->second;
+                    extended_file_info &other = it_equals->second;
                     if (other.full_hash() == entry.second.full_hash())
                     {
                         if (other.parent_id == 0) // initial value
@@ -112,13 +113,12 @@ void duplicate_finder::process_drive(std::set<QString> start_dirs, bool recursiv
             same_size.emplace(entry.second.initial_hash(), entry.second);
         }
         add_to_tree(dupes, same_size, true);
-    } catch (...) {
-        // ignore ?
+        emit scanning_finished();
     }
-
-    qDebug() << "From work thread: " << QThread::currentThreadId();
-
-    emit scanning_finished();
+    catch (...)
+    {
+        return;
+    }
 }
 
 void duplicate_finder::cancel_scanning()
