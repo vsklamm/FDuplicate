@@ -16,6 +16,7 @@
 #include <QListWidgetItem>
 #include <QThread>
 #include <QDebug>
+#include <QToolButton>
 
 #include <algorithm>
 
@@ -24,11 +25,21 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
 {
     ui->setupUi(this);
 
-    //  columns width
+    workingThread = new QThread;
+
+    finder = new duplicate_finder();
+    finder->moveToThread(workingThread);
+
+    taskTimer = new QTime();
+
+    connect(this, &MainWindow::transmit_data, finder, &duplicate_finder::process_drive);
+    connect(this, &MainWindow::stop_scanning, finder, &duplicate_finder::cancel_scanning, Qt::DirectConnection);
+    connect(finder, &duplicate_finder::tree_changed, this, &MainWindow::on_updateTree);
+    connect(finder, &duplicate_finder::scanning_finished, this, &MainWindow::on_scanningFinished);
+
     ui->treeWidget->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-    ui->treeWidget->header()->setSectionResizeMode(1, QHeaderView::Interactive);
-    ui->treeWidget->header()->setSectionResizeMode(2, QHeaderView::Interactive);
-    ui->treeWidget->header()->setSectionResizeMode(3, QHeaderView::Interactive);
+    ui->treeWidget->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    ui->treeWidget->header()->setSectionResizeMode(2, QHeaderView::Stretch);
 
     QCommonStyle style;
     ui->actionOpen_Directory->setIcon(style.standardIcon(QCommonStyle::SP_DialogOpenButton));
@@ -40,10 +51,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
 
     connect(ui->actionOpen_Directory, &QAction::triggered, this, &MainWindow::select_directory);
     connect(ui->actionStart_Scanning, &QAction::triggered, this, &MainWindow::start_scanning);
-    connect(ui->actionStop_Scanning, &QAction::triggered, this, &MainWindow::stop_scanning);
+    connect(ui->actionStop_Scanning, &QAction::triggered, this, &MainWindow::on_cancelButton_clicked);
     connect(ui->actionRemove_Files, &QAction::triggered, this, &MainWindow::remove_files);
     connect(ui->actionExit, &QAction::triggered, this, &QWidget::close);
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::show_about_dialog);
+    connect(ui->toolExpandAll, &QToolButton::clicked, this, &MainWindow::on_expandAll_clicked);
+    connect(ui->toolClearTable, &QToolButton::clicked, this, &MainWindow::on_clearTable_clicked);
 
     progressBar = new QProgressBar(ui->statusBar);
     progressBar->setAlignment(Qt::AlignRight);
@@ -62,6 +75,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
 
 MainWindow::~MainWindow()
 {
+    workingThread->wait();
+
+    delete workingThread;
+    delete finder;
+    delete taskTimer;
+    // TODO: anything else?
 }
 
 void MainWindow::on_addDirectoryButton_clicked()
@@ -83,59 +102,40 @@ void MainWindow::on_deleteDirectoryButton_clicked()
     }
 }
 
+void MainWindow::on_expandAll_clicked()
+{
+    ui->treeWidget->expandAll();
+}
+
+void MainWindow::on_clearTable_clicked()
+{
+    progressBar->setVisible(false);
+    ui->statusBar->showMessage("");
+    labelDupes->setText("");
+    ui->treeWidget->clear();
+}
+
 void MainWindow::on_checkRecursively_stateChanged([[maybe_unused]] int state)
 {
     // TODO: message ?
 }
 
-void MainWindow::add_root(QByteArray &name, QVector<extended_file_info> &vec)
-{
-    QTreeWidgetItem * treeItem = new QTreeWidgetItem(ui->treeWidget);
-    treeItem->setText(0, name);
-    treeItem->setText(0, name);
-    ui->treeWidget->addTopLevelItem(treeItem);
-    for(int i = 0; i < vec.size(); ++i)
-    {
-        add_child(treeItem, vec[i]);
-    }
-}
-void MainWindow::add_child(QTreeWidgetItem * parent, extended_file_info &file_info)
-{
-    QTreeWidgetItem * treeItem = new QTreeWidgetItem();
-    treeItem->setText(0, file_info.file_name);
-    treeItem->setText(1, file_info.path);
-    treeItem->setText(2, QString("%1").arg(file_info.size));
-    treeItem->setText(3, file_info.file_name);
-    parent->addChild(treeItem);
-}
-
 void MainWindow::start_scanning()
 {
-    t = new QTime();
-    t->start();
-
     if (!start_directories.empty())
     {
-        // TODO: ui in another function
-        progressBar->setVisible(true);
+        qDebug() << QString(__func__) << " from Main thread: " << QThread::currentThreadId();
+
+        taskTimer->restart();
+
+        workingThread->start();
+
+        emit transmit_data(start_directories, ui->checkRecursively->isChecked());
+
         ui->statusBar->showMessage("Scanning...");
-
-        qDebug() << "From main thread: " << QThread::currentThreadId();
-
-        QThread * thread= new QThread;
-        duplicate_finder * finder = new duplicate_finder();
-
-        finder->moveToThread(thread);
-
-        connect(finder, &duplicate_finder::tree_changed, this, &MainWindow::on_updateTree);
-        connect(finder, &duplicate_finder::scanning_finished, this, &MainWindow::on_scanningFinished);
-        connect(this, &MainWindow::transmit_data, finder, &duplicate_finder::process_drive);
-        connect(this, &MainWindow::stop_scanning, finder, &duplicate_finder::cancel_scanning);
-
-        thread->start();
-
-        bool checked = ui->checkRecursively->isChecked();
-        emit transmit_data(start_directories, checked);
+        progressBar->setVisible(true);
+        progressBar->setMaximum(100);
+        progressBar->setValue(100);
     }
     else
     {
@@ -145,32 +145,25 @@ void MainWindow::start_scanning()
 
 void MainWindow::on_preprocessingFinished(int files_count)
 {
-   progressBar->setMaximum(files_count);
+    progressBar->setMaximum(files_count);
 }
 
 void MainWindow::on_updateTree(int completed_files, QVector<QVector<extended_file_info>> new_duplicates)
 {
-    // model->found_files = new_duplicates;
-    // ui->treeView->setModel(model);
-
-    labelDupes->setText(QString("Duplicates found: %1").arg(new_duplicates.size()));
     progressBar->setValue(completed_files * 100 / progressBar->maximum()); // TODO: update
-
-    // for (int column = 0; column < model->columnCount(); ++column)
-    //        ui->treeView->resizeColumnToContents(column);
-
-    ui->treeWidget->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
 
     for (auto i = 0; i < new_duplicates.size(); ++i)
     {
         QTreeWidgetItem * item = new QTreeWidgetItem(ui->treeWidget);
-        item->setText(0, new_duplicates[i][0].file_name);
-        item->setText(1, QString::number(new_duplicates[i].size()));
+        item->setText(0, new_duplicates[i][0].file_name + QString(". (%1 files)").arg(new_duplicates[i].size()));
 
         for (auto j = 0; j < new_duplicates[i].size(); ++j)
         {
             QTreeWidgetItem * child_item = new QTreeWidgetItem();
             child_item->setText(0, new_duplicates[i][j].file_name);
+            child_item->setText(1, new_duplicates[i][j].path);
+            child_item->setText(2, QString::number(new_duplicates[i][j].size)); // TODO: formatting size
+            // modified time
             item->addChild(child_item);
         }
     }
@@ -179,7 +172,7 @@ void MainWindow::on_updateTree(int completed_files, QVector<QVector<extended_fil
 void MainWindow::on_scanningFinished(int dupes)
 {
     ui->statusBar->clearMessage();
-    ui->statusBar->showMessage(QString("Scan complete. Elapsed time: %1 ms").arg(t->elapsed()));
+    ui->statusBar->showMessage(QString("Scan complete. Elapsed time: %1 ms").arg(taskTimer->elapsed()));
     labelDupes->setText(QString("Duplicates found: %1").arg(dupes));
 }
 
@@ -215,9 +208,9 @@ void MainWindow::select_directory()
     }
 }
 
-void MainWindow::stop_scanning()
+void MainWindow::on_cancelButton_clicked()
 {
-    // TODO: write some code
+    emit stop_scanning();
 }
 
 void MainWindow::show_about_dialog()

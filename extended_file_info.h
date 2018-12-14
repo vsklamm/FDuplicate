@@ -32,7 +32,7 @@ public:
     QString path;
     fsize_t size;
     int id;
-    int parent_id; // for QTreeView
+    int parent_id = 0; // for QTreeView
     int vector_row;
 
 private:

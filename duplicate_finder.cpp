@@ -18,7 +18,7 @@ struct hash<digest>
     size_t operator()(const digest &x) const
     {
         size_t seed = 0;
-        for (byte c : x) // TODO: or char
+        for (byte c : x)
             seed ^= c;
         return seed;
     }
@@ -39,9 +39,9 @@ void duplicate_finder::clearData()
 
 void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool recursively)
 {
-    clearData();
-
     qDebug() << QString(__func__) << " from work thread: " << QThread::currentThreadId();
+
+    clearData();
 
     try
     {
@@ -49,7 +49,8 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
         {
             if (was_canceled)
             {
-                return; // TODO: or not?
+                emit scanning_canceled();
+                return;
             }
 
             QDir current_dir(current_path);
@@ -61,21 +62,31 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
             while (it.hasNext())
             {
                 if (was_canceled)
-                    break;
+                {
+                    emit scanning_canceled();
+                    return;
+                }
 
                 auto file = it.next();
-                if (!it.fileInfo().isSymLink())
+                const auto file_info = it.fileInfo();
+                if (!file_info.isSymLink())
                 { // TODO: what about them?
-                    auto size = it.fileInfo().size();
+                    auto size = file_info.size();
                     if (size < minsize)
                         continue;
-                    duplicate_by_size.emplace(size, extended_file_info(it.fileInfo().fileName(), it.fileInfo().absolutePath(), size));
+                    duplicate_by_size.emplace(size, extended_file_info(file_info.fileName(), file_info.absolutePath(), size));
                 }
             }
         }
 
         for (auto it = duplicate_by_size.begin(); it != duplicate_by_size.end();)
         {
+            if (was_canceled)
+            {
+                emit scanning_canceled();
+                return;
+            }
+
             if (duplicate_by_size.count(it->first) < 2)
                 duplicate_by_size.erase(it++);
             else
@@ -91,11 +102,23 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
         QVector<QVector<extended_file_info>> table;
         for (auto &entry : duplicate_by_size)
         {
+            if (was_canceled)
+            {
+                emit scanning_canceled();
+                return;
+            }
+
             if (entry.second.size == lastsize)
             {
                 auto equals = same_size.equal_range(entry.second.initial_hash());
                 for (auto it_equals = equals.first; it_equals != equals.second; ++it_equals)
                 {
+                    if (was_canceled)
+                    {
+                        emit scanning_canceled();
+                        return;
+                    }
+
                     extended_file_info &other = it_equals->second;
                     if (other.full_hash() == entry.second.full_hash())
                     {
@@ -135,11 +158,7 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
 void duplicate_finder::cancel_scanning()
 {
     qDebug() << QString(__func__) << " from work thread: " << QThread::currentThreadId();
-    if (!was_canceled) // TODO: rewrite cancelling
-    {
-        was_canceled = true;
-        emit scanning_canceled();
-    }
+    was_canceled = true;
 }
 
 void duplicate_finder::add_to_tree(int completed_files, QVector<QVector<extended_file_info>> &table, bool is_end)

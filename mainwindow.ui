@@ -164,16 +164,16 @@
         <number>0</number>
        </property>
        <item>
-        <widget class="QToolButton" name="toolButton_4">
+        <widget class="QToolButton" name="toolExpandAll">
          <property name="text">
-          <string>...</string>
+          <string>Expand All</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QToolButton" name="toolButton_3">
+        <widget class="QToolButton" name="toolClearTable">
          <property name="text">
-          <string>...</string>
+          <string>Clear Table</string>
          </property>
         </widget>
        </item>
@@ -225,22 +225,22 @@
          </property>
          <column>
           <property name="text">
-           <string notr="true">1</string>
+           <string notr="true">Name</string>
           </property>
          </column>
          <column>
           <property name="text">
-           <string notr="true">2</string>
+           <string notr="true">Path</string>
           </property>
          </column>
          <column>
           <property name="text">
-           <string notr="true">3</string>
+           <string notr="true">Size</string>
           </property>
          </column>
          <column>
           <property name="text">
-           <string notr="true">4</string>
+           <string notr="true">Modified time</string>
           </property>
          </column>
         </widget>
