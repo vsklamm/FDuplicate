@@ -26,9 +26,12 @@ struct hash<digest>
 } // namespace std
 
 duplicate_finder::duplicate_finder()
-    : was_canceled(false){};
+{
+};
 
-duplicate_finder::~duplicate_finder(){};
+duplicate_finder::~duplicate_finder()
+{
+};
 
 void duplicate_finder::clearData()
 {
@@ -40,15 +43,17 @@ void duplicate_finder::clearData()
 void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool recursively)
 {
     qDebug() << QString(__func__) << " from work thread: " << QThread::currentThreadId();
+    scan_is_running = true;
 
     clearData();
 
     try
     {
-        for (auto& current_path : start_dirs) // TODO: changed order :(
+        for (auto& current_path : start_dirs)
         {
             if (was_canceled)
             {
+                scan_is_running = false;
                 emit scanning_finished(0);
                 return;
             }
@@ -63,6 +68,7 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
             {
                 if (was_canceled)
                 {
+                    scan_is_running = false;
                     emit scanning_finished(0);
                     return;
                 }
@@ -83,6 +89,7 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
         {
             if (was_canceled)
             {
+                scan_is_running = false;
                 emit scanning_finished(0);
                 return;
             }
@@ -104,6 +111,7 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
         {
             if (was_canceled)
             {
+                scan_is_running = false;
                 emit scanning_finished(dupes);
                 return;
             }
@@ -115,6 +123,7 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
                 {
                     if (was_canceled)
                     {
+                        scan_is_running = false;
                         emit scanning_finished(dupes);
                         return;
                     }
@@ -146,12 +155,13 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
             same_size.emplace(entry.second.initial_hash(), entry.second);
         }
         add_to_tree(total_id, table, true);
+
+        scan_is_running = false;
         emit scanning_finished(dupes);
     }
     catch (...)
     {
-        // ignore
-        // TODO: do not ignore
+        scan_is_running = false;
     }
 }
 
@@ -163,5 +173,11 @@ void duplicate_finder::cancel_scanning()
 
 void duplicate_finder::add_to_tree(int completed_files, QVector<QVector<extended_file_info>> &table, bool is_end)
 {
-    emit tree_changed(completed_files, table);
+    for (auto& e : table) {
+        qu_table.push_back(e);
+    }
+    if (qu_table.size() > 30 || is_end) {
+        emit tree_changed(completed_files, qu_table);
+        qu_table.clear();
+    }
 }

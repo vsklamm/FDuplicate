@@ -11,6 +11,7 @@
 #include <QStringListModel>
 #include <QTime>
 #include <QTreeWidget>
+
 #include <memory>
 #include <set>
 
@@ -53,6 +54,8 @@ private slots:
 
     void show_about_dialog();
 
+    void on_treeWidget_itemSelectionChanged();
+
 signals:
     void transmit_data(std::set<QString> sDir, bool recursively = true);
     void stop_scanning();
@@ -66,10 +69,11 @@ public:
 
 private:
     QTime * taskTimer; // TODO: unique_ptr
-    QThread * workingThread;
     duplicate_finder * finder;
 
     std::unique_ptr<Ui::MainWindow> ui;
+    std::unique_ptr<QThread> workingThread;
+    // Ui::MainWindow * ui;
 };
 
 #endif // MAINWINDOW_H

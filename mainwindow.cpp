@@ -21,14 +21,13 @@
 #include <algorithm>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
-    ui(new Ui::MainWindow)
+    ui(new Ui::MainWindow),
+    workingThread(new QThread)
 {
     ui->setupUi(this);
 
-    workingThread = new QThread;
-
     finder = new duplicate_finder();
-    finder->moveToThread(workingThread);
+    finder->moveToThread(workingThread.get());
 
     taskTimer = new QTime();
 
@@ -78,10 +77,8 @@ MainWindow::~MainWindow()
     emit stop_scanning();
     workingThread->wait();
 
-    delete workingThread;
     delete finder;
     delete taskTimer;
-    // TODO: anything else?
 }
 
 void MainWindow::on_addDirectoryButton_clicked()
@@ -132,8 +129,9 @@ void MainWindow::on_checkRecursively_stateChanged([[maybe_unused]] int state)
 
 void MainWindow::start_scanning()
 {
-    if (workingThread->isRunning()) {
-        //
+    if (finder->scan_is_running) {
+        show_message_box("The scan is already running");
+        return;
     }
 
     if (!start_directories.empty())
@@ -147,9 +145,10 @@ void MainWindow::start_scanning()
 
         emit transmit_data(start_directories, ui->checkRecursively->isChecked());
 
-        ui->statusBar->showMessage("Scanning...");
+        ui->statusBar->showMessage("Preprocessing...");
         progressBar->setVisible(true);
         progressBar->setValue(0);
+        progressBar->setMaximum(0);
     }
     else
     {
@@ -162,37 +161,31 @@ void MainWindow::start_scanning()
 
 void MainWindow::remove_files()
 {
-    //    bool success = true;
-    //    QString s = "";
-    //    for (size_t i = 0; i < equals.size(); i++) {
-    //        for (size_t j = 1; j < equals[i].size(); j++) {
-    //            QFile f(equals[i][j]);
-    //            if (!f.remove()) {
-    //                success = false;
-    //                s += equals[i][j] + ' ';
-    //            }
-    //        }
-    //    }
-    //    if (success) {
-    //        s = "successful";
-    //    } else {
-    //        s = "failed to remove: " + s;
-    //    }
+    auto selected = ui->treeWidget->selectedItems();
+
+    for (auto& item : selected) {
+        QFile f(QDir::cleanPath(item->text(1) + QDir::separator() + item->text(0)));
+        if (!f.remove()) {
+        }
+    }
 }
 
 void MainWindow::on_preprocessingFinished(int files_count)
 {
     progressBar->setMaximum(files_count);
+    progressBar->setValue(1);
+    ui->statusBar->showMessage("Scanning...");
 }
 
 void MainWindow::on_updateTree(int completed_files, QVector<QVector<extended_file_info>> new_duplicates)
 {
-    progressBar->setValue(completed_files * 100 / progressBar->maximum()); // TODO: update
+    progressBar->setValue(completed_files * 100 / std::max(1, progressBar->maximum())); // TODO: update
 
     for (auto i = 0; i < new_duplicates.size(); ++i)
     {
         QTreeWidgetItem * item = new QTreeWidgetItem(ui->treeWidget);
         item->setText(0, new_duplicates[i][0].file_name + QString(". (%1 files)").arg(new_duplicates[i].size()));
+        item->setFlags(item->flags() & ~Qt::ItemIsSelectable);
 
         for (auto j = 0; j < new_duplicates[i].size(); ++j)
         {
@@ -215,10 +208,15 @@ void MainWindow::on_scanningFinished(int dupes)
 
 void MainWindow::on_removeFilesButton_clicked()
 {
-    show_cancel_yes_dialog(
-                "Remove files",
-                "Are you sure you want to remove all selected files?",
-                [&]() { remove_files(); });
+    auto selected = ui->treeWidget->selectedItems().size();
+    if (selected == 0) {
+        show_message_box("No files to remove selected");
+    } else {
+        show_cancel_yes_dialog(
+                    "Remove files",
+                    QString("Are you sure you want to remove %1 file(s)?").arg(selected),
+                    [&]() { remove_files(); });
+    }
 }
 
 void MainWindow::select_directory()
@@ -235,6 +233,10 @@ void MainWindow::select_directory()
 
 void MainWindow::on_cancelButton_clicked()
 {
+    if (finder->scan_is_running) {
+        show_message_box("The scan is not running");
+        return;
+    }
     show_cancel_yes_dialog(
                 "Cancel the scan",
                 "Are you sure you want to cancel the scan?",
@@ -265,4 +267,9 @@ void MainWindow::show_cancel_yes_dialog(const QString &title, const QString &tex
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, title, text, QMessageBox::Cancel | QMessageBox::Yes);
     if (reply == QMessageBox::Yes) func();
+}
+
+void MainWindow::on_treeWidget_itemSelectionChanged()
+{
+
 }
