@@ -165,6 +165,15 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
     }
 }
 
+void duplicate_finder::remove_files(std::vector<QString> &files_to_remove)
+{
+    for (auto& file_name : files_to_remove) {
+        if (!QFile(file_name).remove()) {
+             // TODO: smth
+        }
+    }
+}
+
 void duplicate_finder::cancel_scanning()
 {
     qDebug() << QString(__func__) << " from work thread: " << QThread::currentThreadId();

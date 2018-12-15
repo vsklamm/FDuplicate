@@ -2,7 +2,6 @@
 #define MAINWINDOW_H
 
 #include "duplicate_finder.h"
-#include "file_remover.h"
 #include "extended_file_info.h"
 #include "modeldir.h"
 

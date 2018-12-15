@@ -1,4 +1,4 @@
-#ifndef DUBLICATE_FINDER_H
+    #ifndef DUBLICATE_FINDER_H
 #define DUBLICATE_FINDER_H
 
 #include <QObject>
@@ -44,6 +44,7 @@ public:
 
 public slots:
     void process_drive(const std::set<QString> &start_dirs, bool recursively = true);
+    void remove_files(std::vector<QString> &files_to_remove);
     void cancel_scanning();
 
 signals:

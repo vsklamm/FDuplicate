@@ -25,18 +25,17 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     workingThread(new QThread),
     removingThread(new QThread),
     finder(new duplicate_finder),
-    // remover(new file_remover), // TODO: do I need it?
     taskTimer(new QTime)
 {
     ui->setupUi(this);
 
     finder->moveToThread(workingThread.get());
-    // remover->moveToThread(workingThread.get());
 
     connect(this, &MainWindow::transmit_data, finder.get(), &duplicate_finder::process_drive);
     connect(this, &MainWindow::stop_scanning, finder.get(), &duplicate_finder::cancel_scanning, Qt::DirectConnection);
     connect(finder.get(), &duplicate_finder::tree_changed, this, &MainWindow::on_updateTree);
     connect(finder.get(), &duplicate_finder::scanning_finished, this, &MainWindow::on_scanningFinished);
+    connect(finder.get(), &duplicate_finder::preprocess_finished, this, &MainWindow::on_preprocessingFinished);
 
     ui->treeWidget->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     ui->treeWidget->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
@@ -170,9 +169,9 @@ void MainWindow::start_scanning()
 void MainWindow::remove_files()
 {
     auto selected = ui->treeWidget->selectedItems();
-    std::vector<QFile> files_to_removing;
+    std::vector<QString> files_to_removing;
     for (auto& item : selected) {
-        // files_to_removing.emplace_back(QDir::cleanPath(item->text(1) + QDir::separator() + item->text(0)));
+        // files_to_removing.push_back(QDir::cleanPath(item->text(1) + QDir::separator() + item->text(0)));
         QFile file(QDir::cleanPath(item->text(1) + QDir::separator() + item->text(0)));
         if (!file.remove()) {
              // TODO:
@@ -183,13 +182,13 @@ void MainWindow::remove_files()
 void MainWindow::on_preprocessingFinished(int files_count)
 {
     progressBar->setMaximum(files_count);
-    progressBar->setValue(1);
+    progressBar->setValue(0);
     ui->statusBar->showMessage("Scanning...");
 }
 
 void MainWindow::on_updateTree(int completed_files, QVector<QVector<extended_file_info>> new_duplicates)
 {
-    progressBar->setValue(completed_files * 100 / std::max(1, progressBar->maximum())); // TODO: update
+    progressBar->setValue(completed_files); // TODO: update
 
     for (auto i = 0; i < new_duplicates.size(); ++i)
     {
@@ -277,4 +276,9 @@ void MainWindow::show_cancel_yes_dialog(const QString &title, const QString &tex
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, title, text, QMessageBox::Cancel | QMessageBox::Yes);
     if (reply == QMessageBox::Yes) func();
+}
+
+void MainWindow::on_treeWidget_itemSelectionChanged()
+{
+
 }
