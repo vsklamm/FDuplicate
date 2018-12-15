@@ -37,19 +37,19 @@ private slots:
     void on_deleteDirectoryButton_clicked();
     void on_expandAll_clicked();
     void on_clearTable_clicked();
+    void on_cancelButton_clicked();
+    void on_removeFilesButton_clicked();
     void on_checkRecursively_stateChanged(int state);
 
     void select_directory();
     void start_scanning();
-    void on_cancelButton_clicked();
-
     void remove_files();
 
     void on_preprocessingFinished(int files_count);
     void on_updateTree(int completed_files, QVector<QVector<extended_file_info>> new_duplicates);
     void on_scanningFinished(int dupes);
 
-    void no_directory_selected();
+    void show_cancel_yes_dialog(const QString &title, const QString &text, std::function<void()> func);
 
     void show_about_dialog();
 
@@ -70,7 +70,6 @@ private:
     duplicate_finder * finder;
 
     std::unique_ptr<Ui::MainWindow> ui;
-    // Ui::MainWindow * ui;
 };
 
 #endif // MAINWINDOW_H

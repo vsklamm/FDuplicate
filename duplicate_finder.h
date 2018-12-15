@@ -46,7 +46,6 @@ public slots:
 signals:
   void preprocess_finished(int files_count); // TODO: int or ulong
   void tree_changed(int completed_files, QVector<QVector<extended_file_info>> new_duplicates);
-  void scanning_canceled();
   void scanning_finished(int dupes);
 
 private:

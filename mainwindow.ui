@@ -164,7 +164,7 @@
         <number>0</number>
        </property>
        <item>
-        <widget class="QToolButton" name="toolExpandAll">
+        <widget class="QToolButton" name="toolExpand_All">
          <property name="text">
           <string>Expand All</string>
          </property>
@@ -220,8 +220,11 @@
        </property>
        <item>
         <widget class="QTreeWidget" name="treeWidget">
+         <property name="selectionMode">
+          <enum>QAbstractItemView::MultiSelection</enum>
+         </property>
          <property name="columnCount">
-          <number>4</number>
+          <number>3</number>
          </property>
          <column>
           <property name="text">
@@ -236,11 +239,6 @@
          <column>
           <property name="text">
            <string notr="true">Size</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string notr="true">Modified time</string>
           </property>
          </column>
         </widget>

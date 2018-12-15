@@ -52,10 +52,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     connect(ui->actionOpen_Directory, &QAction::triggered, this, &MainWindow::select_directory);
     connect(ui->actionStart_Scanning, &QAction::triggered, this, &MainWindow::start_scanning);
     connect(ui->actionStop_Scanning, &QAction::triggered, this, &MainWindow::on_cancelButton_clicked);
-    connect(ui->actionRemove_Files, &QAction::triggered, this, &MainWindow::remove_files);
+    connect(ui->actionRemove_Files, &QAction::triggered, this, &MainWindow::on_removeFilesButton_clicked);
     connect(ui->actionExit, &QAction::triggered, this, &QWidget::close);
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::show_about_dialog);
-    connect(ui->toolExpandAll, &QToolButton::clicked, this, &MainWindow::on_expandAll_clicked);
+    connect(ui->toolExpand_All, &QToolButton::clicked, this, &MainWindow::on_expandAll_clicked);
     connect(ui->toolClearTable, &QToolButton::clicked, this, &MainWindow::on_clearTable_clicked);
 
     progressBar = new QProgressBar(ui->statusBar);
@@ -75,6 +75,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
 
 MainWindow::~MainWindow()
 {
+    emit stop_scanning();
     workingThread->wait();
 
     delete workingThread;
@@ -104,14 +105,23 @@ void MainWindow::on_deleteDirectoryButton_clicked()
 
 void MainWindow::on_expandAll_clicked()
 {
-    ui->treeWidget->expandAll();
+    static bool flag;
+    if (!flag) {
+        ui->treeWidget->expandAll();
+        ui->toolExpand_All->setText("Collapse all");
+    }
+    else {
+        ui->treeWidget->collapseAll();
+        ui->toolExpand_All->setText("Expand all");
+    }
+    flag ^= true;
 }
 
 void MainWindow::on_clearTable_clicked()
 {
     progressBar->setVisible(false);
-    ui->statusBar->showMessage("");
-    labelDupes->setText("");
+    ui->statusBar->clearMessage();
+    labelDupes->clear();
     ui->treeWidget->clear();
 }
 
@@ -122,58 +132,32 @@ void MainWindow::on_checkRecursively_stateChanged([[maybe_unused]] int state)
 
 void MainWindow::start_scanning()
 {
+    if (workingThread->isRunning()) {
+        //
+    }
+
     if (!start_directories.empty())
     {
         qDebug() << QString(__func__) << " from Main thread: " << QThread::currentThreadId();
 
-        taskTimer->restart();
+        on_clearTable_clicked();
 
+        taskTimer->restart();
         workingThread->start();
 
         emit transmit_data(start_directories, ui->checkRecursively->isChecked());
 
         ui->statusBar->showMessage("Scanning...");
         progressBar->setVisible(true);
-        progressBar->setMaximum(100);
-        progressBar->setValue(100);
+        progressBar->setValue(0);
     }
     else
     {
-        no_directory_selected();
+        show_cancel_yes_dialog(
+                    "No directory selected",
+                    "Select first directory to scan?",
+                    [&]() { select_directory(); });
     }
-}
-
-void MainWindow::on_preprocessingFinished(int files_count)
-{
-    progressBar->setMaximum(files_count);
-}
-
-void MainWindow::on_updateTree(int completed_files, QVector<QVector<extended_file_info>> new_duplicates)
-{
-    progressBar->setValue(completed_files * 100 / progressBar->maximum()); // TODO: update
-
-    for (auto i = 0; i < new_duplicates.size(); ++i)
-    {
-        QTreeWidgetItem * item = new QTreeWidgetItem(ui->treeWidget);
-        item->setText(0, new_duplicates[i][0].file_name + QString(". (%1 files)").arg(new_duplicates[i].size()));
-
-        for (auto j = 0; j < new_duplicates[i].size(); ++j)
-        {
-            QTreeWidgetItem * child_item = new QTreeWidgetItem();
-            child_item->setText(0, new_duplicates[i][j].file_name);
-            child_item->setText(1, new_duplicates[i][j].path);
-            child_item->setText(2, QString::number(new_duplicates[i][j].size)); // TODO: formatting size
-            // modified time
-            item->addChild(child_item);
-        }
-    }
-}
-
-void MainWindow::on_scanningFinished(int dupes)
-{
-    ui->statusBar->clearMessage();
-    ui->statusBar->showMessage(QString("Scan complete. Elapsed time: %1 ms").arg(taskTimer->elapsed()));
-    labelDupes->setText(QString("Duplicates found: %1").arg(dupes));
 }
 
 void MainWindow::remove_files()
@@ -196,6 +180,47 @@ void MainWindow::remove_files()
     //    }
 }
 
+void MainWindow::on_preprocessingFinished(int files_count)
+{
+    progressBar->setMaximum(files_count);
+}
+
+void MainWindow::on_updateTree(int completed_files, QVector<QVector<extended_file_info>> new_duplicates)
+{
+    progressBar->setValue(completed_files * 100 / progressBar->maximum()); // TODO: update
+
+    for (auto i = 0; i < new_duplicates.size(); ++i)
+    {
+        QTreeWidgetItem * item = new QTreeWidgetItem(ui->treeWidget);
+        item->setText(0, new_duplicates[i][0].file_name + QString(". (%1 files)").arg(new_duplicates[i].size()));
+
+        for (auto j = 0; j < new_duplicates[i].size(); ++j)
+        {
+            QTreeWidgetItem * child_item = new QTreeWidgetItem();
+            child_item->setText(0, new_duplicates[i][j].file_name);
+            child_item->setText(1, new_duplicates[i][j].path);
+            child_item->setText(2, QString("%1 bytes").arg(new_duplicates[i][j].size)); // TODO: formatting size
+            item->addChild(child_item);
+        }
+    }
+}
+
+void MainWindow::on_scanningFinished(int dupes)
+{
+    ui->statusBar->clearMessage();
+    ui->statusBar->showMessage(QString("Scan complete. Elapsed time: %1 ms").arg(taskTimer->elapsed()));
+    progressBar->setValue(100);
+    labelDupes->setText(QString("Duplicates found: %1").arg(dupes));
+}
+
+void MainWindow::on_removeFilesButton_clicked()
+{
+    show_cancel_yes_dialog(
+                "Remove files",
+                "Are you sure you want to remove all selected files?",
+                [&]() { remove_files(); });
+}
+
 void MainWindow::select_directory()
 {
     QString adding_path = get_selected_directory();
@@ -210,7 +235,10 @@ void MainWindow::select_directory()
 
 void MainWindow::on_cancelButton_clicked()
 {
-    emit stop_scanning();
+    show_cancel_yes_dialog(
+                "Cancel the scan",
+                "Are you sure you want to cancel the scan?",
+                [&]() { emit stop_scanning(); });
 }
 
 void MainWindow::show_about_dialog()
@@ -232,13 +260,9 @@ void MainWindow::show_message_box(QString const &message)
     msgBox.exec();
 }
 
-void MainWindow::no_directory_selected()
+void MainWindow::show_cancel_yes_dialog(const QString &title, const QString &text, std::function<void(void)> func)
 {
     QMessageBox::StandardButton reply;
-    reply = QMessageBox::question(this, "No directory selected", "Select first directory to scan?",
-                                  QMessageBox::Cancel | QMessageBox::Yes);
-    if (reply == QMessageBox::Yes)
-    {
-        select_directory();
-    }
+    reply = QMessageBox::question(this, title, text, QMessageBox::Cancel | QMessageBox::Yes);
+    if (reply == QMessageBox::Yes) func();
 }

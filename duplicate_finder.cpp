@@ -49,7 +49,7 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
         {
             if (was_canceled)
             {
-                emit scanning_canceled();
+                emit scanning_finished(0);
                 return;
             }
 
@@ -63,7 +63,7 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
             {
                 if (was_canceled)
                 {
-                    emit scanning_canceled();
+                    emit scanning_finished(0);
                     return;
                 }
 
@@ -83,7 +83,7 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
         {
             if (was_canceled)
             {
-                emit scanning_canceled();
+                emit scanning_finished(0);
                 return;
             }
 
@@ -104,7 +104,7 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
         {
             if (was_canceled)
             {
-                emit scanning_canceled();
+                emit scanning_finished(dupes);
                 return;
             }
 
@@ -115,7 +115,7 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
                 {
                     if (was_canceled)
                     {
-                        emit scanning_canceled();
+                        emit scanning_finished(dupes);
                         return;
                     }
 
