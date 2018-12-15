@@ -75,8 +75,8 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
 
                 auto file = it.next();
                 const auto file_info = it.fileInfo();
-                if (!file_info.isSymLink())
-                { // TODO: what about them?
+                if (!file_info.isSymLink()) // TODO: what about them?
+                {
                     auto size = file_info.size();
                     if (size < minsize)
                         continue;
@@ -176,7 +176,7 @@ void duplicate_finder::add_to_tree(int completed_files, QVector<QVector<extended
     for (auto& e : table) {
         qu_table.push_back(e);
     }
-    if (qu_table.size() > 30 || is_end) {
+    if (qu_table.size() > 35 || is_end) {
         emit tree_changed(completed_files, qu_table);
         qu_table.clear();
     }

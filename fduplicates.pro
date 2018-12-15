@@ -31,13 +31,15 @@ SOURCES += \
         mainwindow.cpp \
     duplicate_finder.cpp \
     modeldir.cpp \
-    extended_file_info.cpp
+    extended_file_info.cpp \
+    file_remover.cpp
 
 HEADERS += \
     mainwindow.h \
     duplicate_finder.h \
     modeldir.h \
-    extended_file_info.h
+    extended_file_info.h \
+    file_remover.h
 
 FORMS += \
         mainwindow.ui

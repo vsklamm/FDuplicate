@@ -22,19 +22,21 @@
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     ui(new Ui::MainWindow),
-    workingThread(new QThread)
+    workingThread(new QThread),
+    removingThread(new QThread),
+    finder(new duplicate_finder),
+    // remover(new file_remover), // TODO: do I need it?
+    taskTimer(new QTime)
 {
     ui->setupUi(this);
 
-    finder = new duplicate_finder();
     finder->moveToThread(workingThread.get());
+    // remover->moveToThread(workingThread.get());
 
-    taskTimer = new QTime();
-
-    connect(this, &MainWindow::transmit_data, finder, &duplicate_finder::process_drive);
-    connect(this, &MainWindow::stop_scanning, finder, &duplicate_finder::cancel_scanning, Qt::DirectConnection);
-    connect(finder, &duplicate_finder::tree_changed, this, &MainWindow::on_updateTree);
-    connect(finder, &duplicate_finder::scanning_finished, this, &MainWindow::on_scanningFinished);
+    connect(this, &MainWindow::transmit_data, finder.get(), &duplicate_finder::process_drive);
+    connect(this, &MainWindow::stop_scanning, finder.get(), &duplicate_finder::cancel_scanning, Qt::DirectConnection);
+    connect(finder.get(), &duplicate_finder::tree_changed, this, &MainWindow::on_updateTree);
+    connect(finder.get(), &duplicate_finder::scanning_finished, this, &MainWindow::on_scanningFinished);
 
     ui->treeWidget->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     ui->treeWidget->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
@@ -75,10 +77,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
 MainWindow::~MainWindow()
 {
     emit stop_scanning();
+    workingThread->quit();
     workingThread->wait();
 
-    delete finder;
-    delete taskTimer;
+//    removingThread->quit();
+//    removingThread->wait();
 }
 
 void MainWindow::on_addDirectoryButton_clicked()
@@ -116,6 +119,11 @@ void MainWindow::on_expandAll_clicked()
 
 void MainWindow::on_clearTable_clicked()
 {
+    if (finder->scan_is_running)
+    {
+        show_message_box("It is impossible to clear the table. Scan already started.");
+        return;
+    }
     progressBar->setVisible(false);
     ui->statusBar->clearMessage();
     labelDupes->clear();
@@ -162,10 +170,12 @@ void MainWindow::start_scanning()
 void MainWindow::remove_files()
 {
     auto selected = ui->treeWidget->selectedItems();
-
+    std::vector<QFile> files_to_removing;
     for (auto& item : selected) {
-        QFile f(QDir::cleanPath(item->text(1) + QDir::separator() + item->text(0)));
-        if (!f.remove()) {
+        // files_to_removing.emplace_back(QDir::cleanPath(item->text(1) + QDir::separator() + item->text(0)));
+        QFile file(QDir::cleanPath(item->text(1) + QDir::separator() + item->text(0)));
+        if (!file.remove()) {
+             // TODO:
         }
     }
 }
@@ -233,7 +243,7 @@ void MainWindow::select_directory()
 
 void MainWindow::on_cancelButton_clicked()
 {
-    if (finder->scan_is_running) {
+    if (!finder->scan_is_running) {
         show_message_box("The scan is not running");
         return;
     }
@@ -267,9 +277,4 @@ void MainWindow::show_cancel_yes_dialog(const QString &title, const QString &tex
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, title, text, QMessageBox::Cancel | QMessageBox::Yes);
     if (reply == QMessageBox::Yes) func();
-}
-
-void MainWindow::on_treeWidget_itemSelectionChanged()
-{
-
 }

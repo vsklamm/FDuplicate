@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include "duplicate_finder.h"
+#include "file_remover.h"
 #include "extended_file_info.h"
 #include "modeldir.h"
 
@@ -68,11 +69,12 @@ public:
     std::set<QString> start_directories;
 
 private:
-    QTime * taskTimer; // TODO: unique_ptr
-    duplicate_finder * finder;
-
     std::unique_ptr<Ui::MainWindow> ui;
     std::unique_ptr<QThread> workingThread;
+    std::unique_ptr<QThread> removingThread;
+    std::unique_ptr<duplicate_finder> finder;
+    // std::unique_ptr<file_remover> remover;
+    std::unique_ptr<QTime> taskTimer;
     // Ui::MainWindow * ui;
 };
 
