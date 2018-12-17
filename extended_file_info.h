@@ -24,7 +24,7 @@ struct extended_file_info
     digest full_hash();
 
 private:
-    digest sha1(const QString &path, fsize_t max_len);
+    digest sha256(const QString &path, fsize_t max_len);
     QString append_path(const QString &path1, const QString &path2);
 
 public:

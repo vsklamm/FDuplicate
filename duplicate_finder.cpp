@@ -162,6 +162,7 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
     catch (...)
     {
         scan_is_running = false;
+        emit scanning_finished(0);
     }
 }
 

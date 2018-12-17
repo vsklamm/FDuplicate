@@ -15,7 +15,7 @@
 #include <algorithm>
 
 #include "crypto++/sha.h"
-#include "crypto++/filters.h"
+#include "crypto++/filters.h" // TODO: into cpp
 #include "crypto++/hex.h"
 
 #include "extended_file_info.h"
@@ -36,7 +36,7 @@ private:
     std::multimap<fsize_t, extended_file_info> duplicate_by_size;
     QVector<QVector<extended_file_info>> qu_table;
     QSet<QString> visited_directories;
-    bool was_canceled = false;
+    bool was_canceled = false; // TODO: atomic
 
 public:
     duplicate_finder();

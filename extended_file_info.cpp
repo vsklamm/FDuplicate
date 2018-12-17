@@ -22,7 +22,7 @@ digest extended_file_info::initial_hash()
 {
     if (!has_initial_hash)
     {
-        initial_hash_ = sha1(append_path(path, file_name), std::min(first_hash_size, size));
+        initial_hash_ = sha256(append_path(path, file_name), std::min(first_hash_size, size));
         has_initial_hash = true;
     }
     return initial_hash_;
@@ -34,13 +34,13 @@ digest extended_file_info::full_hash()
         return initial_hash();
     if (!has_full_hash)
     {
-        full_hash_ = sha1(append_path(path, file_name), size);
+        full_hash_ = sha256(append_path(path, file_name), size);
         has_full_hash = true;
     }
     return full_hash_;
 }
 
-digest extended_file_info::sha1(const QString &path, fsize_t maxlen)
+digest extended_file_info::sha256(const QString &path, fsize_t maxlen)
 {
     char file_data[8192];
 
@@ -48,19 +48,19 @@ digest extended_file_info::sha1(const QString &path, fsize_t maxlen)
     digest dig;
 
     QFile read_file(path);
-    read_file.open(QIODevice::ReadOnly);
-
-    fsize_t read = 0;
-    while (read < maxlen)
-    {
-        fsize_t len = read_file.read(file_data, sizeof(file_data));
-        read += len;
-        if (len == 0)
-            break;
-        sha2.Update(reinterpret_cast<byte *>(file_data), size_t(len));
+    if (read_file.open(QIODevice::ReadOnly)) {
+        fsize_t read = 0;
+        while (read < maxlen)
+        {
+            fsize_t len = read_file.read(file_data, sizeof(file_data));
+            read += len;
+            if (len == 0)
+                break;
+            sha2.Update(reinterpret_cast<byte *>(file_data), size_t(len));
+        }
+        read_file.close();
+        sha2.Final(dig.begin());
     }
-    read_file.close();
-    sha2.Final(dig.begin());
     return dig;
 }
 
