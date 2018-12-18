@@ -1,6 +1,8 @@
 #include "duplicate_finder.h"
 #include "extended_file_info.h"
 
+#include "crypto++/filters.h"
+
 #include <QDir>
 #include <QDirIterator>
 #include <QFileInfo>
@@ -26,6 +28,7 @@ struct hash<digest>
 } // namespace std
 
 duplicate_finder::duplicate_finder()
+    : was_canceled(false)
 {
 };
 
@@ -35,12 +38,12 @@ duplicate_finder::~duplicate_finder()
 
 void duplicate_finder::clearData()
 {
-    duplicate_by_size.clear();
-    visited_directories.clear();
+    duplicate_by_size_.clear();
+    visited_directories_.clear();
     was_canceled = false;
 }
 
-void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool recursively)
+void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool recursively)
 {
     qDebug() << QString(__func__) << " from work thread: " << QThread::currentThreadId();
     scan_is_running = true;
@@ -54,12 +57,12 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
             if (was_canceled)
             {
                 scan_is_running = false;
-                emit scanning_finished(0);
+                emit scanningFinished(0);
                 return;
             }
 
             QDir current_dir(current_path);
-            visited_directories.insert(current_dir.path()); // TODO: hmmmm
+            visited_directories_.insert(current_dir.path()); // TODO: hmmmm
 
             QDirIterator it(current_dir.path(), QDir::Hidden | QDir::Files | QDir::NoDotAndDotDot,
                             recursively ? QDirIterator::Subdirectories : QDirIterator::NoIteratorFlags);
@@ -69,7 +72,7 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
                 if (was_canceled)
                 {
                     scan_is_running = false;
-                    emit scanning_finished(0);
+                    emit scanningFinished(0);
                     return;
                 }
 
@@ -77,59 +80,61 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
                 const auto file_info = it.fileInfo();
                 if (!file_info.isSymLink()) // TODO: what about them?
                 {
-                    auto size = file_info.size();
-                    if (size < minsize)
-                        continue;
-                    duplicate_by_size.emplace(size, extended_file_info(file_info.fileName(), file_info.absolutePath(), size));
+                    if (QFile(file).open(QIODevice::ReadOnly)) { // TODO: too sloooow work with strings and files
+                        auto size = file_info.size();
+                        if (size < minsize)
+                            continue;
+                        duplicate_by_size_.emplace(size, extended_file_info(file_info.fileName(), file_info.absolutePath(), size));
+                    }
                 }
             }
         }
 
-        for (auto it = duplicate_by_size.begin(); it != duplicate_by_size.end();)
+        for (auto it = duplicate_by_size_.begin(); it != duplicate_by_size_.end();)
         {
             if (was_canceled)
             {
                 scan_is_running = false;
-                emit scanning_finished(0);
+                emit scanningFinished(0);
                 return;
             }
 
-            if (duplicate_by_size.count(it->first) < 2)
-                duplicate_by_size.erase(it++);
+            if (duplicate_by_size_.count(it->first) < 2)
+                duplicate_by_size_.erase(it++);
             else
                 ++it;
         }
 
-        emit preprocess_finished(int(duplicate_by_size.size())); // TODO: or not int
+        emit preprocessFinished(int(duplicate_by_size_.size())); // TODO: or not int
 
         fsize_t lastsize = 0;
         int dupes = 0, total_id = 1;
         int group = 0;
         same_size_map same_size;
         QVector<QVector<extended_file_info>> table;
-        for (auto &entry : duplicate_by_size)
+        for (auto &entry : duplicate_by_size_)
         {
             if (was_canceled)
             {
                 scan_is_running = false;
-                emit scanning_finished(dupes);
+                emit scanningFinished(dupes);
                 return;
             }
 
             if (entry.second.size == lastsize)
             {
-                auto equals = same_size.equal_range(entry.second.initial_hash());
+                auto equals = same_size.equal_range(entry.second.initialHash());
                 for (auto it_equals = equals.first; it_equals != equals.second; ++it_equals)
                 {
                     if (was_canceled)
                     {
                         scan_is_running = false;
-                        emit scanning_finished(dupes);
+                        emit scanningFinished(dupes);
                         return;
                     }
 
                     extended_file_info &other = it_equals->second;
-                    if (other.full_hash() == entry.second.full_hash())
+                    if (other.fullHash() == entry.second.fullHash())
                     {
                         if (other.parent_id == 0) { // initial value
                             ++dupes;
@@ -141,53 +146,54 @@ void duplicate_finder::process_drive(const std::set<QString> &start_dirs, bool r
                         entry.second.parent_id = other.parent_id;
                         entry.second.vector_row = other.vector_row;
                         table[entry.second.vector_row].push_back(entry.second);
+                        break;
                     }
                 }
             }
             else
             {
-                add_to_tree(total_id, table, false);
+                addToTree(total_id, table, false);
                 table.clear();
                 same_size.clear();
                 lastsize = entry.second.size;
             }
             entry.second.id = total_id++;
-            same_size.emplace(entry.second.initial_hash(), entry.second);
+            same_size.emplace(entry.second.initialHash(), entry.second);
         }
-        add_to_tree(total_id, table, true);
+        addToTree(total_id, table, true);
 
         scan_is_running = false;
-        emit scanning_finished(dupes);
+        emit scanningFinished(dupes);
     }
     catch (...)
     {
         scan_is_running = false;
-        emit scanning_finished(0);
+        emit scanningFinished(0);
     }
 }
 
-void duplicate_finder::remove_files(std::vector<QString> &files_to_remove)
+void duplicate_finder::removeFiles(std::vector<QString> &files_to_remove)
 {
     for (auto& file_name : files_to_remove) {
         if (!QFile(file_name).remove()) {
-             // TODO: smth
+            // TODO: smth
         }
     }
 }
 
-void duplicate_finder::cancel_scanning()
+void duplicate_finder::cancelScanning()
 {
     qDebug() << QString(__func__) << " from work thread: " << QThread::currentThreadId();
     was_canceled = true;
 }
 
-void duplicate_finder::add_to_tree(int completed_files, QVector<QVector<extended_file_info>> &table, bool is_end)
+void duplicate_finder::addToTree(int completed_files, QVector<QVector<extended_file_info>> &table, bool is_end)
 {
     for (auto& e : table) {
-        qu_table.push_back(e);
+        qu_table_.push_back(e);
     }
-    if (qu_table.size() > 35 || is_end) {
-        emit tree_changed(completed_files, qu_table);
-        qu_table.clear();
+    if (qu_table_.size() > 15 || is_end) {
+        emit treeChanged(completed_files, qu_table_);
+        qu_table_.clear();
     }
 }

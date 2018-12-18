@@ -1,7 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "duplicate_finder.h"
-#include "modeldir.h"
 
 #include <QCommonStyle>
 #include <QDesktopWidget>
@@ -23,7 +22,6 @@
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     ui(new Ui::MainWindow),
     workingThread(new QThread),
-    removingThread(new QThread),
     finder(new duplicate_finder),
     taskTimer(new QTime)
 {
@@ -31,11 +29,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
 
     finder->moveToThread(workingThread.get());
 
-    connect(this, &MainWindow::transmit_data, finder.get(), &duplicate_finder::process_drive);
-    connect(this, &MainWindow::stop_scanning, finder.get(), &duplicate_finder::cancel_scanning, Qt::DirectConnection);
-    connect(finder.get(), &duplicate_finder::tree_changed, this, &MainWindow::on_updateTree);
-    connect(finder.get(), &duplicate_finder::scanning_finished, this, &MainWindow::on_scanningFinished);
-    connect(finder.get(), &duplicate_finder::preprocess_finished, this, &MainWindow::on_preprocessingFinished);
+    connect(this, &MainWindow::transmitData, finder.get(), &duplicate_finder::processDrive);
+    connect(this, &MainWindow::stopScanning, finder.get(), &duplicate_finder::cancelScanning, Qt::DirectConnection);
+    connect(finder.get(), &duplicate_finder::treeChanged, this, &MainWindow::on_updateTree);
+    connect(finder.get(), &duplicate_finder::scanningFinished, this, &MainWindow::on_scanningFinished);
+    connect(finder.get(), &duplicate_finder::preprocessFinished, this, &MainWindow::on_preprocessingFinished);
 
     ui->treeWidget->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     ui->treeWidget->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
@@ -49,55 +47,56 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     ui->actionExit->setIcon(style.standardIcon(QCommonStyle::SP_DialogCloseButton));
     ui->actionAbout->setIcon(style.standardIcon(QCommonStyle::SP_DialogHelpButton));
 
-    connect(ui->actionOpen_Directory, &QAction::triggered, this, &MainWindow::select_directory);
-    connect(ui->actionStart_Scanning, &QAction::triggered, this, &MainWindow::start_scanning);
+    connect(ui->actionOpen_Directory, &QAction::triggered, this, &MainWindow::selectDirectory);
+    connect(ui->actionStart_Scanning, &QAction::triggered, this, &MainWindow::startScanning);
     connect(ui->actionStop_Scanning, &QAction::triggered, this, &MainWindow::on_cancelButton_clicked);
     connect(ui->actionRemove_Files, &QAction::triggered, this, &MainWindow::on_removeFilesButton_clicked);
     connect(ui->actionExit, &QAction::triggered, this, &QWidget::close);
-    connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::show_about_dialog);
+    connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::showAboutDialog);
     connect(ui->toolExpand_All, &QToolButton::clicked, this, &MainWindow::on_expandAll_clicked);
     connect(ui->toolClearTable, &QToolButton::clicked, this, &MainWindow::on_clearTable_clicked);
 
-    progressBar = new QProgressBar(ui->statusBar);
+    progressBar = std::make_unique<QProgressBar>(ui->statusBar);
     progressBar->setAlignment(Qt::AlignRight);
-    progressBar->setMaximumSize(180, 19);
+    progressBar->setMaximumSize(210, 19);
     progressBar->setVisible(false);
 
-    labelDupes = new QLabel(ui->statusBar);
+    labelDupes = std::make_unique<QLabel>(ui->statusBar);
     labelDupes->setAlignment(Qt::AlignRight);
     labelDupes->setMinimumSize(labelDupes->sizeHint());
 
-    ui->statusBar->addPermanentWidget(labelDupes);
-    ui->statusBar->addPermanentWidget(progressBar);
-
-    // model = new ModelDir(this);
+    ui->statusBar->addPermanentWidget(labelDupes.get());
+    ui->statusBar->addPermanentWidget(progressBar.get());
 }
 
 MainWindow::~MainWindow()
 {
-    emit stop_scanning();
+    emit stopScanning();
     workingThread->quit();
     workingThread->wait();
-
-//    removingThread->quit();
-//    removingThread->wait();
 }
 
 void MainWindow::on_addDirectoryButton_clicked()
 {
-    select_directory();
+    selectDirectory();
 }
 
 void MainWindow::on_deleteDirectoryButton_clicked()
 {
     QModelIndexList selected = ui->listStart_Directories->selectionModel()->selectedIndexes();
-    if (!selected.isEmpty()) // TODO: if only one item too
+    auto deleteFromList = [&](int row) {
+        start_directories.erase(ui->listStart_Directories->item(row)->text());
+        ui->listStart_Directories->model()->removeRow(row);
+    };
+    if (ui->listStart_Directories->count() == 1) {
+        deleteFromList(0);
+        return;
+    }
+    if (!selected.isEmpty())
     {
         for (auto i = 0; i < selected.count(); ++i)
         {
-            int row = selected[i].row();
-            start_directories.erase(ui->listStart_Directories->item(row)->text());
-            ui->listStart_Directories->model()->removeRow(row);
+            deleteFromList(selected[i].row());
         }
     }
 }
@@ -134,7 +133,7 @@ void MainWindow::on_checkRecursively_stateChanged([[maybe_unused]] int state)
     // TODO: message ?
 }
 
-void MainWindow::start_scanning()
+void MainWindow::startScanning()
 {
     if (finder->scan_is_running) {
         show_message_box("The scan is already running");
@@ -150,7 +149,7 @@ void MainWindow::start_scanning()
         taskTimer->restart();
         workingThread->start();
 
-        emit transmit_data(start_directories, ui->checkRecursively->isChecked());
+        emit transmitData(start_directories, ui->checkRecursively->isChecked());
 
         ui->statusBar->showMessage("Preprocessing...");
         progressBar->setVisible(true);
@@ -159,14 +158,14 @@ void MainWindow::start_scanning()
     }
     else
     {
-        show_cancel_yes_dialog(
+        showCancelYesDialog(
                     "No directory selected",
                     "Select first directory to scan?",
-                    [&]() { select_directory(); });
+                    [&]() { selectDirectory(); });
     }
 }
 
-void MainWindow::remove_files()
+void MainWindow::removeFiles()
 {
     auto selected = ui->treeWidget->selectedItems();
     std::vector<QString> files_to_removing;
@@ -221,14 +220,14 @@ void MainWindow::on_removeFilesButton_clicked()
     if (selected == 0) {
         show_message_box("No files to remove selected");
     } else {
-        show_cancel_yes_dialog(
+        showCancelYesDialog(
                     "Remove files",
                     QString("Are you sure you want to remove %1 file(s)?").arg(selected),
-                    [&]() { remove_files(); });
+                    [&]() { removeFiles(); });
     }
 }
 
-void MainWindow::select_directory()
+void MainWindow::selectDirectory()
 {
     QString adding_path = get_selected_directory();
 
@@ -246,13 +245,13 @@ void MainWindow::on_cancelButton_clicked()
         show_message_box("The scan is not running");
         return;
     }
-    show_cancel_yes_dialog(
+    showCancelYesDialog(
                 "Cancel the scan",
                 "Are you sure you want to cancel the scan?",
-                [&]() { emit stop_scanning(); });
+                [&]() { emit stopScanning(); });
 }
 
-void MainWindow::show_about_dialog()
+void MainWindow::showAboutDialog()
 {
     QMessageBox::about(this, "FDuplicate", "");
 }
@@ -271,7 +270,7 @@ void MainWindow::show_message_box(QString const &message)
     msgBox.exec();
 }
 
-void MainWindow::show_cancel_yes_dialog(const QString &title, const QString &text, std::function<void(void)> func)
+void MainWindow::showCancelYesDialog(const QString &title, const QString &text, std::function<void(void)> func)
 {
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, title, text, QMessageBox::Cancel | QMessageBox::Yes);

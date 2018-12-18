@@ -28,13 +28,11 @@ SOURCES += \
         main.cpp \
         mainwindow.cpp \
     duplicate_finder.cpp \
-    modeldir.cpp \
     extended_file_info.cpp
 
 HEADERS += \
     mainwindow.h \
     duplicate_finder.h \
-    modeldir.h \
     extended_file_info.h
 
 FORMS += \

@@ -4,37 +4,32 @@
 #include <QFile>
 
 extended_file_info::extended_file_info()
-    : file_name(""), path(""), size(0), id(0), parent_id(0)
+    : file_name(""), path(""), size(0), id(0)
 {
 }
 
 extended_file_info::extended_file_info(QString name, QString path, fsize_t size)
-    : file_name(name), path(path), size(size), id(0), parent_id(0)
+    : file_name(name), path(path), size(size), id(0)
 {
 }
 
-extended_file_info::extended_file_info(QString name, QString path, fsize_t size, int id, int parent_id)
-    : file_name(name), path(path), size(size), id(id), parent_id(parent_id)
-{
-}
-
-digest extended_file_info::initial_hash()
+digest extended_file_info::initialHash()
 {
     if (!has_initial_hash)
     {
-        initial_hash_ = sha256(append_path(path, file_name), std::min(first_hash_size, size));
+        initial_hash_ = sha256(appendPath(path, file_name), std::min(first_hash_size, size));
         has_initial_hash = true;
     }
     return initial_hash_;
 }
 
-digest extended_file_info::full_hash()
+digest extended_file_info::fullHash()
 {
     if (first_hash_size >= size)
-        return initial_hash();
+        return initialHash();
     if (!has_full_hash)
     {
-        full_hash_ = sha256(append_path(path, file_name), size);
+        full_hash_ = sha256(appendPath(path, file_name), size);
         has_full_hash = true;
     }
     return full_hash_;
@@ -64,7 +59,7 @@ digest extended_file_info::sha256(const QString &path, fsize_t maxlen)
     return dig;
 }
 
-QString extended_file_info::append_path(const QString &path1, const QString &path2)
+QString extended_file_info::appendPath(const QString &path1, const QString &path2)
 {
     return QDir::cleanPath(path1 + QDir::separator() + path2);
 }

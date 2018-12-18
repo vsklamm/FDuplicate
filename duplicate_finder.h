@@ -1,4 +1,4 @@
-    #ifndef DUBLICATE_FINDER_H
+#ifndef DUBLICATE_FINDER_H
 #define DUBLICATE_FINDER_H
 
 #include <QObject>
@@ -6,16 +6,12 @@
 #include <QString>
 #include <QVector>
 
-#include <map>
 #include <set>
 #include <vector>
-#include <array>
-#include <queue>
 #include <unordered_map>
-#include <algorithm>
+#include <atomic>
 
 #include "crypto++/sha.h"
-#include "crypto++/filters.h" // TODO: into cpp
 #include "crypto++/hex.h"
 
 #include "extended_file_info.h"
@@ -33,27 +29,26 @@ public:
     bool scan_is_running = false;
 
 private:
-    std::multimap<fsize_t, extended_file_info> duplicate_by_size;
-    QVector<QVector<extended_file_info>> qu_table;
-    QSet<QString> visited_directories;
-    bool was_canceled = false; // TODO: atomic
-
+    std::multimap<fsize_t, extended_file_info> duplicate_by_size_;
+    QVector<QVector<extended_file_info>> qu_table_;
+    QSet<QString> visited_directories_;
+    std::atomic<bool> was_canceled;
 public:
     duplicate_finder();
     ~duplicate_finder();
 
 public slots:
-    void process_drive(const std::set<QString> &start_dirs, bool recursively = true);
-    void remove_files(std::vector<QString> &files_to_remove);
-    void cancel_scanning();
+    void processDrive(const std::set<QString> &start_dirs, bool recursively = true);
+    void removeFiles(std::vector<QString> &files_to_remove);
+    void cancelScanning();
 
 signals:
-    void preprocess_finished(int files_count); // TODO: int or ulong
-    void tree_changed(int completed_files, QVector<QVector<extended_file_info>> new_duplicates);
-    void scanning_finished(int dupes);
+    void preprocessFinished(int files_count); // TODO: int or ulong
+    void treeChanged(int completed_files, QVector<QVector<extended_file_info>> new_duplicates);
+    void scanningFinished(int dupes);
 
 private:
-    void add_to_tree(int completed_files, QVector<QVector<extended_file_info>> &table, bool is_end); // TODO: int or ulong
+    void addToTree(int completed_files, QVector<QVector<extended_file_info>> &table, bool is_end); // TODO: int or ulong
     void clearData();
 };
 

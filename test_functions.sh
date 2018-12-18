@@ -19,8 +19,9 @@ generate_files_group()
 	local in_grp=$(($dps * $groupsf / 100))
 	local grps=$((dps / in_grp))
 	for i in $(seq 1 1 $grps); do 
-		(dd if=/dev/urandom of=$i bs=$size count=1) > /dev/null 2>&1; 
+		(dd if=/dev/urandom of=$i bs=$size count=1) > /dev/null 2>&1;		
 	done
+	# TODO: fallocate -l 5G example // for big files
 
 	local FILES="$(pwd)"/*
 	for f in $FILES; do

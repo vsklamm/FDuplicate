@@ -3,16 +3,14 @@
 
 #include "duplicate_finder.h"
 #include "extended_file_info.h"
-#include "modeldir.h"
 
-#include <QLabel>
 #include <QMainWindow>
-#include <QProgressBar>
-#include <QStringListModel>
-#include <QTime>
 #include <QTreeWidget>
+#include <QProgressBar>
+#include <QLabel>
 
-#include <memory>
+#include <QTime> // TODO: -> Timer or smth else
+
 #include <set>
 
 namespace Ui
@@ -42,39 +40,34 @@ private slots:
     void on_removeFilesButton_clicked();
     void on_checkRecursively_stateChanged(int state);
 
-    void select_directory();
-    void start_scanning();
-    void remove_files();
+    void selectDirectory();
+    void startScanning();
+    void removeFiles();
 
     void on_preprocessingFinished(int files_count);
     void on_updateTree(int completed_files, QVector<QVector<extended_file_info>> new_duplicates);
     void on_scanningFinished(int dupes);
 
-    void show_cancel_yes_dialog(const QString &title, const QString &text, std::function<void()> func);
+    void showCancelYesDialog(const QString &title, const QString &text, std::function<void()> func);
 
-    void show_about_dialog();
+    void showAboutDialog();
 
     void on_treeWidget_itemSelectionChanged();
 
 signals:
-    void transmit_data(std::set<QString> sDir, bool recursively = true);
-    void stop_scanning();
+    void transmitData(std::set<QString> sDir, bool recursively = true);
+    void stopScanning();
 
 public:
-    // ModelDir *model;
-    QLabel * labelDupes;
-    QProgressBar * progressBar;
-
+    std::unique_ptr<QLabel> labelDupes;
+    std::unique_ptr<QProgressBar> progressBar;
     std::set<QString> start_directories;
 
 private:
     std::unique_ptr<Ui::MainWindow> ui;
     std::unique_ptr<QThread> workingThread;
-    std::unique_ptr<QThread> removingThread;
     std::unique_ptr<duplicate_finder> finder;
-    // std::unique_ptr<file_remover> remover;
     std::unique_ptr<QTime> taskTimer;
-    // Ui::MainWindow * ui;
 };
 
 #endif // MAINWINDOW_H
