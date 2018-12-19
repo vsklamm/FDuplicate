@@ -8,10 +8,10 @@
 #include <QTreeWidget>
 #include <QProgressBar>
 #include <QLabel>
-
-#include <QTime> // TODO: -> Timer or smth else
+#include <QElapsedTimer>
 
 #include <set>
+#include <memory>
 
 namespace Ui
 {
@@ -67,7 +67,7 @@ private:
     std::unique_ptr<Ui::MainWindow> ui;
     std::unique_ptr<QThread> workingThread;
     std::unique_ptr<duplicate_finder> finder;
-    std::unique_ptr<QTime> taskTimer;
+    std::unique_ptr<QElapsedTimer> taskTimer;
 };
 
 #endif // MAINWINDOW_H

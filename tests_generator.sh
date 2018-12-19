@@ -19,7 +19,7 @@ goto_dir fduplicate_tests
 
 echo '== RUNTIME =='
 
-goto_dir speed
+goto_dir runtime
 echo 'TEST 1. (3000 x 4Kb, 0 dupes)'
 goto_dir test1
 for i in $(seq 1 1 3000); do 

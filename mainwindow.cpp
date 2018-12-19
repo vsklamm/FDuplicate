@@ -23,7 +23,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     ui(new Ui::MainWindow),
     workingThread(new QThread),
     finder(new duplicate_finder),
-    taskTimer(new QTime)
+    taskTimer(new QElapsedTimer)
 {
     ui->setupUi(this);
 
@@ -170,10 +170,9 @@ void MainWindow::removeFiles()
     auto selected = ui->treeWidget->selectedItems();
     std::vector<QString> files_to_removing;
     for (auto& item : selected) {
-        // files_to_removing.push_back(QDir::cleanPath(item->text(1) + QDir::separator() + item->text(0)));
         QFile file(QDir::cleanPath(item->text(1) + QDir::separator() + item->text(0)));
-        if (!file.remove()) {
-             // TODO:
+        if (file.remove()) {
+            // item->removeChild();
         }
     }
 }
@@ -187,7 +186,7 @@ void MainWindow::on_preprocessingFinished(int files_count)
 
 void MainWindow::on_updateTree(int completed_files, QVector<QVector<extended_file_info>> new_duplicates)
 {
-    progressBar->setValue(completed_files); // TODO: update
+    progressBar->setValue(completed_files);
 
     for (auto i = 0; i < new_duplicates.size(); ++i)
     {
@@ -210,7 +209,7 @@ void MainWindow::on_scanningFinished(int dupes)
 {
     ui->statusBar->clearMessage();
     ui->statusBar->showMessage(QString("Scan complete. Elapsed time: %1 ms").arg(taskTimer->elapsed()));
-    progressBar->setValue(100);
+    progressBar->setValue(progressBar->maximum());
     labelDupes->setText(QString("Duplicates found: %1").arg(dupes));
 }
 

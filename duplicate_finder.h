@@ -39,7 +39,6 @@ public:
 
 public slots:
     void processDrive(const std::set<QString> &start_dirs, bool recursively = true);
-    void removeFiles(std::vector<QString> &files_to_remove);
     void cancelScanning();
 
 signals:
@@ -48,7 +47,7 @@ signals:
     void scanningFinished(int dupes);
 
 private:
-    void addToTree(int completed_files, QVector<QVector<extended_file_info>> &table, bool is_end); // TODO: int or ulong
+    void addToTree(int completed_files, QVector<QVector<extended_file_info>> &table, int dups, bool is_end); // TODO: int or ulong
     void clearData();
 };
 

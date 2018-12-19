@@ -64,7 +64,7 @@ void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool re
             QDir current_dir(current_path);
             visited_directories_.insert(current_dir.path()); // TODO: hmmmm
 
-            QDirIterator it(current_dir.path(), QDir::Hidden | QDir::Files | QDir::NoDotAndDotDot,
+            QDirIterator it(current_dir.path(), QDir::Readable | QDir::Hidden | QDir::Files | QDir::NoDotAndDotDot, // TODO: tests for rights
                             recursively ? QDirIterator::Subdirectories : QDirIterator::NoIteratorFlags);
 
             while (it.hasNext())
@@ -108,8 +108,8 @@ void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool re
         emit preprocessFinished(int(duplicate_by_size_.size())); // TODO: or not int
 
         fsize_t lastsize = 0;
-        int dupes = 0, total_id = 1;
-        int group = 0;
+        int dupes = 0, prev_dups = 0;
+        int group = 0, total_id = 1;
         same_size_map same_size;
         QVector<QVector<extended_file_info>> table;
         for (auto &entry : duplicate_by_size_)
@@ -139,7 +139,7 @@ void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool re
                         if (other.parent_id == 0) { // initial value
                             ++dupes;
                             other.parent_id = ++group;
-                            other.vector_row = entry.second.vector_row = table.size();
+                            other.vector_row = table.size();
                             table.push_back(QVector<extended_file_info>(1, other));
                         }
                         ++dupes;
@@ -152,7 +152,7 @@ void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool re
             }
             else
             {
-                addToTree(total_id, table, false);
+                addToTree(total_id, table, (prev_dups = dupes - prev_dups), false);
                 table.clear();
                 same_size.clear();
                 lastsize = entry.second.size;
@@ -160,7 +160,7 @@ void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool re
             entry.second.id = total_id++;
             same_size.emplace(entry.second.initialHash(), entry.second);
         }
-        addToTree(total_id, table, true);
+        addToTree(total_id, table, dupes, true);
 
         scan_is_running = false;
         emit scanningFinished(dupes);
@@ -172,27 +172,18 @@ void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool re
     }
 }
 
-void duplicate_finder::removeFiles(std::vector<QString> &files_to_remove)
-{
-    for (auto& file_name : files_to_remove) {
-        if (!QFile(file_name).remove()) {
-            // TODO: smth
-        }
-    }
-}
-
 void duplicate_finder::cancelScanning()
 {
     qDebug() << QString(__func__) << " from work thread: " << QThread::currentThreadId();
     was_canceled = true;
 }
 
-void duplicate_finder::addToTree(int completed_files, QVector<QVector<extended_file_info>> &table, bool is_end)
+void duplicate_finder::addToTree(int completed_files, QVector<QVector<extended_file_info>> &table, int dups, bool is_end)
 {
     for (auto& e : table) {
         qu_table_.push_back(e);
     }
-    if (qu_table_.size() > 15 || is_end) {
+    if (dups > 15 || is_end) {
         emit treeChanged(completed_files, qu_table_);
         qu_table_.clear();
     }
