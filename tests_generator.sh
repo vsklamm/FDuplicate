@@ -18,8 +18,8 @@ dir="$(pwd)"
 goto_dir fduplicate_tests
 
 echo '== RUNTIME =='
-
 goto_dir runtime
+
 echo 'TEST 1. (3000 x 4Kb, 0 dupes)'
 goto_dir test1
 for i in $(seq 1 1 3000); do 
@@ -38,23 +38,18 @@ goto_dir test3
 generate_files_group 2 100 100 1G
 cd ..
 
-echo 'TEST 4. (for my bug)'	
-goto_dir test4
-generate_files_group 24 100 25 1M
 cd ..
 
-cd ..
-
-echo '== SYMLINKS =='
-
+echo '== SYMLINK =='
 goto_dir symlinks
-echo 'TEST 3. (3 equal files <-> 2 symlinks, 1 broken symlink)'
+
+echo 'TEST 1. (3 equal files <-> 2 symlinks, 1 broken symlink)'
 goto_dir test1 
 # outer="$(pwd)"
 generate_files_group 3 100 100 100K
 cd ..
 
-echo 'TEST 4. (loop, 2 equal files)'
+echo 'TEST 2. (loop, 2 equal files)'
 goto_dir test2
 outer="$(pwd)"
 inner=nested
@@ -64,11 +59,20 @@ cd ..
 
 cd ..
 
-goto_dir rights
 echo '== RIGHTS =='
-echo 'TEST 5. ()'
+goto_dir rights
 
-echo 'TEST 6. ()'
+echo 'TEST 1. (2 x 2K, 2 dups, chmod -r)'
+goto_dir test1
+generate_files_group 2 100 100 4K
+chmod -r "1"
+chmod -r "1(1)"
+cd ..
+
+echo 'TEST 2. ()'
+goto_dir test2
+cd ..
+
 cd ..
 
 

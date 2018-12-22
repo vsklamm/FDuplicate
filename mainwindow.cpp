@@ -23,7 +23,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     ui(new Ui::MainWindow),
     workingThread(new QThread),
     finder(new duplicate_finder),
-    taskTimer(new QElapsedTimer)
+    taskTimer(new QElapsedTimer),
+    scan_is_running(false)
 {
     ui->setupUi(this);
 
@@ -36,8 +37,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
     connect(finder.get(), &duplicate_finder::preprocessFinished, this, &MainWindow::on_preprocessingFinished);
 
     ui->treeWidget->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-    ui->treeWidget->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    ui->treeWidget->header()->setSectionResizeMode(2, QHeaderView::Stretch);
+    // ui->treeWidget->header()->setSectionResizeMode(1, QHeaderView::Custom);
+    ui->treeWidget->header()->setSectionResizeMode(2, QHeaderView::Fixed);
 
     QCommonStyle style;
     ui->actionOpen_Directory->setIcon(style.standardIcon(QCommonStyle::SP_DialogOpenButton));
@@ -117,7 +118,7 @@ void MainWindow::on_expandAll_clicked()
 
 void MainWindow::on_clearTable_clicked()
 {
-    if (finder->scan_is_running)
+    if (scan_is_running)
     {
         show_message_box("It is impossible to clear the table. Scan already started.");
         return;
@@ -135,7 +136,7 @@ void MainWindow::on_checkRecursively_stateChanged([[maybe_unused]] int state)
 
 void MainWindow::startScanning()
 {
-    if (finder->scan_is_running) {
+    if (scan_is_running) {
         show_message_box("The scan is already running");
         return;
     }
@@ -150,6 +151,7 @@ void MainWindow::startScanning()
         workingThread->start();
 
         emit transmitData(start_directories, ui->checkRecursively->isChecked());
+        scan_is_running = true;
 
         ui->statusBar->showMessage("Preprocessing...");
         progressBar->setVisible(true);
@@ -173,6 +175,27 @@ void MainWindow::removeFiles()
         QFile file(QDir::cleanPath(item->text(1) + QDir::separator() + item->text(0)));
         if (file.remove()) {
             // item->removeChild();
+        }
+    }
+
+    std::vector<QString> s;
+    QTreeWidgetItemIterator it(ui->treeWidget, QTreeWidgetItemIterator::NoChildren);
+    std::vector<QTreeWidgetItem *> d;
+    while (*it) {
+        if ((*it)->isSelected()) {
+            s.push_back((*it)->text(0));
+            qDebug() << (*it)->text(0) << '\n';
+            d.push_back(*it);
+        }
+        ++it;
+    }
+    for (auto& c: d) {
+        int cnt = c->parent()->text(1).toInt() - 1;
+        c->parent()->setText(1, QString::number(cnt));
+        if (cnt == 0) {
+            delete c->parent();
+        } else {
+            delete c;
         }
     }
 }
@@ -207,8 +230,11 @@ void MainWindow::on_updateTree(int completed_files, QVector<QVector<extended_fil
 
 void MainWindow::on_scanningFinished(int dupes)
 {
+    scan_is_running = false;
     ui->statusBar->clearMessage();
     ui->statusBar->showMessage(QString("Scan complete. Elapsed time: %1 ms").arg(taskTimer->elapsed()));
+    if (progressBar->maximum() == 0)
+        progressBar->setMaximum(1);
     progressBar->setValue(progressBar->maximum());
     labelDupes->setText(QString("Duplicates found: %1").arg(dupes));
 }
@@ -240,7 +266,7 @@ void MainWindow::selectDirectory()
 
 void MainWindow::on_cancelButton_clicked()
 {
-    if (!finder->scan_is_running) {
+    if (!scan_is_running) {
         show_message_box("The scan is not running");
         return;
     }

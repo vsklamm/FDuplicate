@@ -24,17 +24,20 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 CONFIG += c++17
+QMAKE_CXXFLAGS_RELEASE += -O3
 
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
     duplicate_finder.cpp \
-    extended_file_info.cpp
+    extended_file_info.cpp \
+    file_not_exist.cpp
 
 HEADERS += \
     mainwindow.h \
     duplicate_finder.h \
-    extended_file_info.h
+    extended_file_info.h \
+    file_not_exist.h
 
 FORMS += \
         mainwindow.ui

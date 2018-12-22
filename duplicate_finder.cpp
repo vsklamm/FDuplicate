@@ -46,7 +46,6 @@ void duplicate_finder::clearData()
 void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool recursively)
 {
     qDebug() << QString(__func__) << " from work thread: " << QThread::currentThreadId();
-    scan_is_running = true;
 
     clearData();
 
@@ -56,7 +55,6 @@ void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool re
         {
             if (was_canceled)
             {
-                scan_is_running = false;
                 emit scanningFinished(0);
                 return;
             }
@@ -71,7 +69,6 @@ void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool re
             {
                 if (was_canceled)
                 {
-                    scan_is_running = false;
                     emit scanningFinished(0);
                     return;
                 }
@@ -84,7 +81,7 @@ void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool re
                         auto size = file_info.size();
                         if (size < minsize)
                             continue;
-                        duplicate_by_size_.emplace(size, extended_file_info(file_info.fileName(), file_info.absolutePath(), size));
+                        duplicate_by_size_.emplace(size, extended_file_info(file_info.fileName(), file_info.path(), size)); // TODO: path ot abcolute_path
                     }
                 }
             }
@@ -94,7 +91,6 @@ void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool re
         {
             if (was_canceled)
             {
-                scan_is_running = false;
                 emit scanningFinished(0);
                 return;
             }
@@ -116,7 +112,6 @@ void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool re
         {
             if (was_canceled)
             {
-                scan_is_running = false;
                 emit scanningFinished(dupes);
                 return;
             }
@@ -128,7 +123,6 @@ void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool re
                 {
                     if (was_canceled)
                     {
-                        scan_is_running = false;
                         emit scanningFinished(dupes);
                         return;
                     }
@@ -162,12 +156,10 @@ void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool re
         }
         addToTree(total_id, table, dupes, true);
 
-        scan_is_running = false;
         emit scanningFinished(dupes);
     }
     catch (...)
     {
-        scan_is_running = false;
         emit scanningFinished(0);
     }
 }

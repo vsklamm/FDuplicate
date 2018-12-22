@@ -37,14 +37,14 @@ digest extended_file_info::fullHash()
 
 digest extended_file_info::sha256(const QString &path, fsize_t maxlen)
 {
-    char file_data[8192];
-
-    CryptoPP::SHA256 sha2;
     digest dig;
-
     QFile read_file(path);
-    if (read_file.open(QIODevice::ReadOnly)) {
+    if (read_file.exists() && read_file.open(QIODevice::ReadOnly)) {
+
+        char file_data[8192];
+        CryptoPP::SHA1 sha2;
         fsize_t read = 0;
+
         while (read < maxlen)
         {
             fsize_t len = read_file.read(file_data, sizeof(file_data));

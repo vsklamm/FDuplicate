@@ -68,6 +68,7 @@ private:
     std::unique_ptr<QThread> workingThread;
     std::unique_ptr<duplicate_finder> finder;
     std::unique_ptr<QElapsedTimer> taskTimer;
+    bool scan_is_running;
 };
 
 #endif // MAINWINDOW_H

@@ -26,8 +26,6 @@ public:
     const fsize_t minsize = 1;
     const int max_dup_buffer = 100;
 
-    bool scan_is_running = false;
-
 private:
     std::multimap<fsize_t, extended_file_info> duplicate_by_size_;
     QVector<QVector<extended_file_info>> qu_table_;
