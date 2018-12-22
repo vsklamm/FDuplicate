@@ -173,31 +173,31 @@ void MainWindow::removeFiles()
     std::vector<QString> files_to_removing;
     for (auto& item : selected) {
         QFile file(QDir::cleanPath(item->text(1) + QDir::separator() + item->text(0)));
-        if (file.remove()) {
+        if (file.exists() && file.remove()) {
             // item->removeChild();
         }
     }
 
-    std::vector<QString> s;
-    QTreeWidgetItemIterator it(ui->treeWidget, QTreeWidgetItemIterator::NoChildren);
-    std::vector<QTreeWidgetItem *> d;
-    while (*it) {
-        if ((*it)->isSelected()) {
-            s.push_back((*it)->text(0));
-            qDebug() << (*it)->text(0) << '\n';
-            d.push_back(*it);
-        }
-        ++it;
-    }
-    for (auto& c: d) {
-        int cnt = c->parent()->text(1).toInt() - 1;
-        c->parent()->setText(1, QString::number(cnt));
-        if (cnt == 0) {
-            delete c->parent();
-        } else {
-            delete c;
-        }
-    }
+//    std::vector<QString> s;
+//    QTreeWidgetItemIterator it(ui->treeWidget, QTreeWidgetItemIterator::NoChildren);
+//    std::vector<QTreeWidgetItem *> directories_to_remove;
+//    while (*it) {
+//        if ((*it)->isSelected()) {
+//            s.push_back((*it)->text(0));
+//            qDebug() << (*it)->text(0) << '\n';
+//            directories_to_remove.push_back(*it);
+//        }
+//        ++it;
+//    }
+//    for (auto& c: directories_to_remove) {
+//        int cnt = c->parent()->text(1).toInt() - 1;
+//        c->parent()->setText(1, QString::number(cnt));
+//        if (cnt == 0) {
+//            delete c->parent();
+//        } else {
+//            delete c;
+//        }
+//    }
 }
 
 void MainWindow::on_preprocessingFinished(int files_count)

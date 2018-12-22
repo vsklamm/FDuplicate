@@ -49,6 +49,7 @@ void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool re
 
     clearData();
 
+    int dupes = 0;
     try
     {
         for (auto& current_path : start_dirs)
@@ -104,7 +105,7 @@ void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool re
         emit preprocessFinished(int(duplicate_by_size_.size())); // TODO: or not int
 
         fsize_t lastsize = 0;
-        int dupes = 0, prev_dups = 0;
+        int prev_dups = 0;
         int group = 0, total_id = 1;
         same_size_map same_size;
         QVector<QVector<extended_file_info>> table;
@@ -160,7 +161,7 @@ void duplicate_finder::processDrive(const std::set<QString> &start_dirs, bool re
     }
     catch (...)
     {
-        emit scanningFinished(0);
+        emit scanningFinished(dupes);
     }
 }
 
