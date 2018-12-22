@@ -24,18 +24,18 @@ echo 'TEST 1. (3000 x 4Kb, 0 dupes)'
 goto_dir test1
 for i in $(seq 1 1 3000); do 
 	(dd if=/dev/urandom of=$i bs=4K count=1) > /dev/null 2>&1;
-# generate_files_group 3000 0 1 4K
+# generate_files_group 3000 0 1 4K 1
 done
 cd ..
 
 echo 'TEST 2. (3000 x 1M, ~60% dupes)'
 goto_dir test2
-generate_files_group 3000 60 1 1M
+generate_files_group 3000 60 1 1M 1
 cd ..
 
 echo 'TEST 3. (2 x 1Gb, 2 dupes)'	
 goto_dir test3
-generate_files_group 2 100 100 1G
+generate_files_group 2 100 100 8M 256 
 cd ..
 
 cd ..
@@ -46,7 +46,7 @@ goto_dir symlinks
 echo 'TEST 1. (3 equal files <-> 2 symlinks, 1 broken symlink)'
 goto_dir test1 
 # outer="$(pwd)"
-generate_files_group 3 100 100 100K
+generate_files_group 3 100 100 100K 1
 cd ..
 
 echo 'TEST 2. (loop, 2 equal files)'
@@ -64,7 +64,7 @@ goto_dir rights
 
 echo 'TEST 1. (2 x 2K, 2 dups, chmod -r)'
 goto_dir test1
-generate_files_group 2 100 100 4K
+generate_files_group 2 100 100 4K 1
 chmod -r "1"
 chmod -r "1(1)"
 cd ..

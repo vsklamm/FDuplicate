@@ -14,12 +14,13 @@ generate_files_group()
 	local groupsf=$3 # maximum percent of files of [dupes] which each group contains
 	local size=$4 # <= 0: random TODO: make working
 	       	# otherwise: =size in dd format
+	local count=$5
 	
 	local dps=$(($n * $dupes / 100))
 	local in_grp=$(($dps * $groupsf / 100))
 	local grps=$((dps / in_grp))
 	for i in $(seq 1 1 $grps); do 
-		(dd if=/dev/urandom of=$i bs=$size count=1) > /dev/null 2>&1;		
+		(dd if=/dev/urandom of=$i bs=$size count=$count) > /dev/null 2>&1;		
 	done
 	# TODO: fallocate -l 5G example // for big files
 
